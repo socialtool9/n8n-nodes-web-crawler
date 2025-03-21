@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-web-crawler",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Node n8n để cào dữ liệu web, trích xuất văn bản và hình ảnh, lưu trữ bài viết vào cơ sở dữ liệu, lọc hình ảnh theo kích thước, quản lý trạng thái bài viết",
   "main": "index.js",
   "scripts": {
@@ -21,7 +21,7 @@
   "n8n": {
     "n8nNodesApiVersion": 1,
     "nodes": [
-      "dist/WebCrawler/WebCrawler.node.js"
+      "dist/index.js"
     ]
   },
   "dependencies": {
