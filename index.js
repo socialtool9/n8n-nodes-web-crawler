@@ -1,1 +1,1 @@
-module.exports = require('./dist/WebCrawler/WebCrawler.node.js');
+module.exports = require('./dist');

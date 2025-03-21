@@ -6,8 +6,9 @@
     "moduleResolution": "node",
     "sourceMap": true,
     "esModuleInterop": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "declaration": true
   },
-  "include": ["nodes/**/*"],
-  "exclude": ["node_modules/**/*", "dist/**/*"]
+  "include": ["nodes/**/*", "src/**/*"],
+  "exclude": ["node_modules/**/*", "dist/**/*", "tests/**/*"]
 }
