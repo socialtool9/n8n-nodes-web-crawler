@@ -1,4 +1,4 @@
-# Node Web Crawler cho n8n
+# Node Web Crawler cho n8n (v1.3.3)
 
 Node tùy chỉnh cho n8n giúp cào dữ liệu từ trang web, trích xuất nội dung văn bản và liên kết hình ảnh, lọc hình ảnh theo kích thước và lưu trữ bài viết vào cơ sở dữ liệu.
 
@@ -166,3 +166,24 @@ Sau khi cài đặt, node "Web Crawler" sẽ xuất hiện trong danh sách các
 - Việc kiểm tra kích thước thực tế của hình ảnh sẽ làm chậm quá trình xử lý do phải tải mỗi hình ảnh
 - Đảm bảo chuỗi kết nối đến cơ sở dữ liệu chính xác để tránh lỗi khi lưu trữ bài viết
 - Bài viết với trạng thái "done" đã được xử lý và nên bỏ qua, giúp tránh đăng trùng lặp 
+
+## Phát triển và kiểm thử
+
+Node Crawler này bao gồm bộ test hiện đại để đảm bảo tính ổn định của các chức năng chính:
+
+```bash
+# Chạy bộ test
+npm test
+```
+
+Bộ test bao gồm:
+- Kiểm thử thao tác cào dữ liệu trang web
+- Kiểm thử thao tác lấy bài viết ngẫu nhiên
+- Kiểm thử các thao tác truy vấn và cập nhật cơ sở dữ liệu
+
+## Cập nhật mới nhất (v1.3.3)
+
+Trong phiên bản 1.3.3, chúng tôi đã cải thiện:
+- Bộ kiểm thử cho thao tác randomArticle
+- Sửa lỗi TypeScript trong các file test
+- Tối ưu hóa quy trình kiểm thử với mocks chính xác hơn 
