@@ -1,7 +1,7 @@
 import { INodeExecutionData } from 'n8n-workflow';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
-import { getImageSize, normalizeUrl } from '../utils/imageUtils';
+import { getImageSize, normalizeUrl, isBase64Image } from '../utils/imageUtils';
 
 export async function crawlPage(
     url: string,
@@ -25,30 +25,60 @@ export async function crawlPage(
     const allImages: Array<{ src: string; width?: number; height?: number }> = [];
     $(imageSelector).each((_, element) => {
         const src = $(element).attr('src');
-        if (src) {
-            // Kiểm tra kích thước từ thuộc tính HTML
-            const width = parseInt($(element).attr('width') || '0', 10);
-            const height = parseInt($(element).attr('height') || '0', 10);
-            
-            // Chuẩn hóa đường dẫn
-            const fullSrc = normalizeUrl(src, url);
-            
-            allImages.push({ src: fullSrc, width, height });
-        }
+        if (!src) return; // Bỏ qua nếu không có src
+        
+        // Kiểm tra kích thước từ thuộc tính HTML
+        const width = parseInt($(element).attr('width') || '0', 10);
+        const height = parseInt($(element).attr('height') || '0', 10);
+        
+        // Chuẩn hóa đường dẫn (Base64 sẽ được giữ nguyên)
+        const fullSrc = normalizeUrl(src, url);
+        
+        allImages.push({ src: fullSrc, width, height });
     });
+    
+    console.log(`Tìm thấy ${allImages.length} hình ảnh trên trang`);
     
     // Lọc hình ảnh theo kích thước
     let imageLinks: string[] = [];
+    let skippedForSize = 0;
+    let skippedBase64Icons = 0;
     
     if (filterImagesBySize) {
         const filteredImages = [];
         
         for (const image of allImages) {
-            // Nếu kích thước từ HTML đã đáp ứng yêu cầu, không cần kiểm tra thêm
-            if (
-                (image.width && image.width >= minImageSize) || 
-                (image.height && image.height >= minImageSize)
-            ) {
+            // Kiểm tra nếu là ảnh base64
+            if (isBase64Image(image.src)) {
+                // Với base64, nếu đã biết kích thước từ HTML và quá nhỏ -> bỏ qua luôn
+                if ((image.width && image.width < minImageSize && image.height && image.height < minImageSize)) {
+                    skippedBase64Icons++;
+                    continue;
+                }
+                
+                // Nếu không biết kích thước và cần kiểm tra
+                if (checkActualImageSize && (!image.width || !image.height)) {
+                    try {
+                        const dimensions = await getImageSize(image.src);
+                        if (dimensions.width && dimensions.height &&
+                            dimensions.width >= minImageSize || dimensions.height >= minImageSize) {
+                            filteredImages.push(image.src);
+                        } else {
+                            skippedBase64Icons++;
+                        }
+                    } catch (error) {
+                        console.error(`Lỗi khi kiểm tra kích thước ảnh base64:`, error);
+                    }
+                } else {
+                    // Nếu không kiểm tra kích thước thực tế, thêm vào lọc
+                    filteredImages.push(image.src);
+                }
+                continue;
+            }
+            
+            // Xử lý ảnh thông thường (không phải base64)
+            // Nếu kích thước từ HTML đã đáp ứng yêu cầu
+            if ((image.width && image.width >= minImageSize) || (image.height && image.height >= minImageSize)) {
                 filteredImages.push(image.src);
                 continue;
             }
@@ -58,15 +88,17 @@ export async function crawlPage(
                 try {
                     const dimensions = await getImageSize(image.src);
                     
-                    if (
-                        (dimensions.width && dimensions.width >= minImageSize) || 
-                        (dimensions.height && dimensions.height >= minImageSize)
-                    ) {
+                    if ((dimensions.width && dimensions.width >= minImageSize) || 
+                        (dimensions.height && dimensions.height >= minImageSize)) {
                         filteredImages.push(image.src);
+                    } else {
+                        skippedForSize++;
                     }
                 } catch (error) {
-                    console.error(`Lỗi khi kiểm tra kích thước hình ảnh ${image.src}:`, error);
+                    console.error(`Lỗi khi kiểm tra kích thước ảnh: ${image.src}`, error);
                 }
+            } else {
+                skippedForSize++;
             }
         }
         
@@ -87,7 +119,9 @@ export async function crawlPage(
                 filtered: true,
                 minImageSize,
                 originalCount: allImages.length,
-                filteredCount: imageLinks.length
+                filteredCount: imageLinks.length,
+                skippedForSize,
+                skippedBase64Icons
             } : {
                 filtered: false
             }

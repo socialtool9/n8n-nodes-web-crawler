@@ -2,6 +2,16 @@
 
 Tất cả các thay đổi đáng chú ý của dự án sẽ được ghi lại trong file này.
 
+## [1.3.5] - 2024-03-22
+
+### Thêm mới
+- Hỗ trợ xử lý và lọc ảnh base64
+- Thêm thống kê số lượng ảnh đã bỏ qua trong kết quả
+
+### Cố định
+- Sửa lỗi khi lọc ảnh theo kích thước không hoạt động đúng
+- Cải thiện logic lọc để loại bỏ icon, avatar và sticker có kích thước nhỏ
+
 ## [1.3.4] - 2024-03-22
 
 ### Thay đổi

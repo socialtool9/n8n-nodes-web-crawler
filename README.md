@@ -1,4 +1,4 @@
-# Node Web Crawler cho n8n (v1.3.4)
+# Node Web Crawler cho n8n (v1.3.5)
 
 Node tùy chỉnh cho n8n giúp cào dữ liệu từ trang web, trích xuất nội dung văn bản và liên kết hình ảnh, lọc hình ảnh theo kích thước và lưu trữ bài viết vào cơ sở dữ liệu.
 
@@ -93,14 +93,17 @@ Sau khi cài đặt, node "Web Crawler" sẽ xuất hiện trong danh sách các
   "textContent": "Nội dung văn bản từ trang web",
   "imageLinks": [
     "https://example.com/image1.jpg",
-    "https://example.com/image2.jpg"
+    "https://example.com/image2.jpg",
+    "data:image/png;base64,..."
   ],
-  "imageCount": 2,
+  "imageCount": 3,
   "filterDetails": {
     "filtered": true,
     "minImageSize": 300,
-    "originalCount": 5,
-    "filteredCount": 2
+    "originalCount": 10,
+    "filteredCount": 3,
+    "skippedForSize": 5,
+    "skippedBase64Icons": 2
   }
 }
 ```
@@ -181,13 +184,19 @@ Bộ test bao gồm:
 - Kiểm thử thao tác lấy bài viết ngẫu nhiên
 - Kiểm thử các thao tác truy vấn và cập nhật cơ sở dữ liệu
 
-## Cập nhật mới nhất (v1.3.4)
+## Cập nhật mới nhất (v1.3.5)
 
-Trong phiên bản 1.3.4, chúng tôi đã cải thiện:
-- Cập nhật biểu tượng cho node n8n
-- Tối ưu hóa hiệu suất cào dữ liệu
+Trong phiên bản 1.3.5, chúng tôi đã cải thiện:
+- Hỗ trợ xử lý và lọc ảnh base64
+- Sửa lỗi khi lọc ảnh theo kích thước
+- Cải thiện logic lọc để loại bỏ icon, avatar và sticker có kích thước nhỏ
+- Bổ sung thông tin thống kê về số lượng ảnh đã bỏ qua
 
 ## Các bản cập nhật trước
+
+### Phiên bản 1.3.4
+- Cập nhật biểu tượng cho node n8n
+- Tối ưu hóa hiệu suất cào dữ liệu
 
 ### Phiên bản 1.3.3
 - Thêm biểu tượng cho node n8n
