@@ -2,6 +2,13 @@
 
 Tất cả các thay đổi đáng chú ý của dự án sẽ được ghi lại trong file này.
 
+## [1.4.0] - 2024-03-22
+
+### Thêm mới
+- Thêm thao tác "Tìm Kiếm Ảnh Google" cho phép tìm kiếm ảnh theo từ khóa
+- Thêm tính năng lọc ảnh theo kích thước cho kết quả tìm kiếm Google
+- Thêm tùy chọn giới hạn số lượng ảnh tải về
+
 ## [1.3.5] - 2024-03-22
 
 ### Thêm mới

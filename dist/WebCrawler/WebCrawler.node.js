@@ -4,6 +4,7 @@ exports.WebCrawler = void 0;
 const nodeDescription_1 = require("./nodeDescription");
 const crawlPage_1 = require("./operations/crawlPage");
 const randomArticle_1 = require("./operations/randomArticle");
+const googleImageSearch_1 = require("./operations/googleImageSearch");
 class WebCrawler {
     constructor() {
         this.description = nodeDescription_1.nodeDescription;
@@ -40,6 +41,18 @@ class WebCrawler {
                     const contentSelector = this.getNodeParameter('contentSelector', itemIndex);
                     const fetchFullContent = this.getNodeParameter('fetchFullContent', itemIndex);
                     const result = await (0, randomArticle_1.getRandomArticle)(url, articleSelector, titleSelector, linkSelector, contentSelector, fetchFullContent);
+                    returnData.push(result);
+                }
+                else if (operation === 'googleImageSearch') {
+                    // Thực hiện tìm kiếm ảnh Google
+                    const keyword = this.getNodeParameter('keyword', itemIndex);
+                    const maxImages = this.getNodeParameter('maxImages', itemIndex, 5);
+                    const filterBySize = this.getNodeParameter('filterBySize', itemIndex, true);
+                    let minImageSize = 500;
+                    if (filterBySize) {
+                        minImageSize = this.getNodeParameter('minImageSize', itemIndex, 500);
+                    }
+                    const result = await (0, googleImageSearch_1.googleImageSearch)(keyword, maxImages, minImageSize, filterBySize);
                     returnData.push(result);
                 }
             }

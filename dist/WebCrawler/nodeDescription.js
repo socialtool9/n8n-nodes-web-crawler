@@ -31,6 +31,11 @@ exports.nodeDescription = {
                     value: 'randomArticle',
                     description: 'Lấy ngẫu nhiên một bài viết từ trang web',
                 },
+                {
+                    name: 'Tìm Kiếm Ảnh Google',
+                    value: 'googleImageSearch',
+                    description: 'Tìm kiếm ảnh từ Google theo từ khóa',
+                },
             ],
         },
         // Các trường chung
@@ -45,6 +50,58 @@ exports.nodeDescription = {
             displayOptions: {
                 show: {
                     operation: ['crawlPage', 'randomArticle'],
+                },
+            },
+        },
+        // Trường cho việc tìm kiếm ảnh Google
+        {
+            displayName: 'Từ khóa tìm kiếm',
+            name: 'keyword',
+            type: 'string',
+            default: '',
+            placeholder: 'nature landscape',
+            description: 'Từ khóa để tìm kiếm ảnh trên Google',
+            required: true,
+            displayOptions: {
+                show: {
+                    operation: ['googleImageSearch'],
+                },
+            },
+        },
+        {
+            displayName: 'Số lượng ảnh tối đa',
+            name: 'maxImages',
+            type: 'number',
+            default: 5,
+            description: 'Số lượng ảnh tối đa sẽ được lấy về',
+            displayOptions: {
+                show: {
+                    operation: ['googleImageSearch'],
+                },
+            },
+        },
+        {
+            displayName: 'Lọc ảnh theo kích thước',
+            name: 'filterBySize',
+            type: 'boolean',
+            default: true,
+            description: 'Chỉ lấy ảnh có kích thước lớn hơn giá trị đã chỉ định',
+            displayOptions: {
+                show: {
+                    operation: ['googleImageSearch'],
+                },
+            },
+        },
+        {
+            displayName: 'Kích thước tối thiểu (px)',
+            name: 'minImageSize',
+            type: 'number',
+            default: 500,
+            description: 'Chỉ lấy ảnh có kích thước (chiều rộng hoặc chiều cao) lớn hơn giá trị này',
+            displayOptions: {
+                show: {
+                    operation: ['googleImageSearch'],
+                    filterBySize: [true],
                 },
             },
         },

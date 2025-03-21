@@ -3,6 +3,7 @@ import { INodeExecutionData, INodeType } from 'n8n-workflow';
 import { nodeDescription } from './nodeDescription';
 import { crawlPage } from './operations/crawlPage';
 import { getRandomArticle } from './operations/randomArticle';
+import { googleImageSearch } from './operations/googleImageSearch';
 
 export class WebCrawler implements INodeType {
 	description = nodeDescription;
@@ -58,6 +59,25 @@ export class WebCrawler implements INodeType {
 						linkSelector,
 						contentSelector,
 						fetchFullContent
+					);
+
+					returnData.push(result);
+				} else if (operation === 'googleImageSearch') {
+					// Thực hiện tìm kiếm ảnh Google
+					const keyword = this.getNodeParameter('keyword', itemIndex) as string;
+					const maxImages = this.getNodeParameter('maxImages', itemIndex, 5) as number;
+					const filterBySize = this.getNodeParameter('filterBySize', itemIndex, true) as boolean;
+					let minImageSize = 500;
+					
+					if (filterBySize) {
+						minImageSize = this.getNodeParameter('minImageSize', itemIndex, 500) as number;
+					}
+
+					const result = await googleImageSearch(
+						keyword,
+						maxImages,
+						minImageSize,
+						filterBySize
 					);
 
 					returnData.push(result);

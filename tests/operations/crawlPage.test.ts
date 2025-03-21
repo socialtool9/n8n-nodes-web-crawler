@@ -33,6 +33,16 @@ describe('crawlPage operation', () => {
       if (url.includes('image1.jpg')) return { width: 800, height: 600 };
       return { width: 300, height: 200 };
     });
+    
+    // Mock hàm isBase64Image
+    mockedImageUtils.isBase64Image.mockImplementation((src) => {
+      return src.startsWith('data:image');
+    });
+    
+    // Mock hàm getBase64Buffer
+    mockedImageUtils.getBase64Buffer.mockImplementation((base64String) => {
+      return Buffer.from('mockBase64Data');
+    });
   });
   
   afterEach(() => {
@@ -158,6 +168,84 @@ describe('crawlPage operation', () => {
     
     const filterDetails = json.filterDetails as IDataObject;
     expect(filterDetails.filtered).toBe(true);
+  });
+  
+  test('should handle base64 images', async () => {
+    // Mock HTML with base64 images
+    mockedAxios.get.mockResolvedValue({
+      data: '<html><body><p>Test content</p><img src="data:image/png;base64,iVBORw0K..." width="600" height="400"/><img src="data:image/png;base64,smallicon..." width="32" height="32"/></body></html>'
+    });
+    
+    // Chuẩn bị mock cheerio
+    const mockEachImages = jest.fn().mockImplementation(function(callback) {
+      callback(0, { type: 'tag', name: 'img' });
+      callback(1, { type: 'tag', name: 'img' });
+      return { length: 2 };
+    });
+    
+    const mockAttr = jest.fn().mockImplementation(function(attr) {
+      if (attr === 'src') {
+        if (this.element && this.element.name === 'img') {
+          return this.index === 0 
+            ? 'data:image/png;base64,iVBORw0K...' 
+            : 'data:image/png;base64,smallicon...';
+        }
+      }
+      if (attr === 'width') return this.index === 0 ? '600' : '32';
+      if (attr === 'height') return this.index === 0 ? '400' : '32';
+      return undefined;
+    });
+    
+    const mockText = jest.fn().mockReturnValue('Sample text content');
+    
+    // Chuẩn bị mock $ function
+    const mockCheerioApi = (selector: string) => {
+      const mock: any = {
+        element: { type: 'selector', selector },
+        index: 0,
+        text: mockText,
+        attr: mockAttr,
+        find: jest.fn().mockReturnThis(),
+        each: mockEachImages,
+      };
+      return mock;
+    };
+    
+    // Đặt giá trị cho cheerio.load
+    mockedCheerio.load.mockReturnValue(mockCheerioApi as any);
+    
+    // Mocks cho các phương thức xử lý base64
+    mockedImageUtils.getImageSize.mockImplementation(async (url) => {
+      if (url === 'data:image/png;base64,iVBORw0K...') return { width: 600, height: 400 };
+      if (url === 'data:image/png;base64,smallicon...') return { width: 32, height: 32 };
+      return { width: 300, height: 200 };
+    });
+    
+    // Thực thi với bộ lọc kích thước
+    const result = await crawlPage(
+      'https://example.com',
+      'p',
+      'img',
+      true,
+      300,
+      true
+    );
+    
+    // Kiểm tra
+    expect(mockedAxios.get).toHaveBeenCalledWith('https://example.com');
+    expect(mockedCheerio.load).toHaveBeenCalled();
+    
+    const json = result.json as IDataObject;
+    expect(Array.isArray(json.imageLinks)).toBe(true);
+    
+    // Chỉ có 1 ảnh base64 lớn hơn ngưỡng 300px
+    expect((json.imageLinks as string[]).length).toBe(1);
+    expect((json.imageLinks as string[])[0]).toBe('data:image/png;base64,iVBORw0K...');
+    
+    // Kiểm tra có thông tin skippedBase64Icons
+    const filterDetails = json.filterDetails as IDataObject;
+    expect(filterDetails.filtered).toBe(true);
+    expect(filterDetails.skippedBase64Icons).toBe(1);
   });
   
   test('should crawl a real-world site like VnExpress', async () => {

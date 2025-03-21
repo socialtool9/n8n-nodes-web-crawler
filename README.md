@@ -1,4 +1,4 @@
-# Node Web Crawler cho n8n (v1.3.5)
+# Node Web Crawler cho n8n (v1.4.0)
 
 Node tùy chỉnh cho n8n giúp cào dữ liệu từ trang web, trích xuất nội dung văn bản và liên kết hình ảnh, lọc hình ảnh theo kích thước và lưu trữ bài viết vào cơ sở dữ liệu.
 
@@ -11,6 +11,7 @@ Node này cho phép:
 - Lấy bài viết ngẫu nhiên từ trang web và lưu vào cơ sở dữ liệu MySQL hoặc PostgreSQL
 - Truy xuất bài viết đã lưu từ cơ sở dữ liệu
 - Cập nhật trạng thái bài viết (pending/done/skipped) để quản lý tiến trình xử lý
+- Tìm kiếm ảnh từ Google theo từ khóa để sử dụng trong bài viết
 
 ## Cài đặt
 
@@ -47,6 +48,7 @@ Sau khi cài đặt, node "Web Crawler" sẽ xuất hiện trong danh sách các
 2. **Lấy Bài Viết Ngẫu Nhiên**: Lấy ngẫu nhiên một bài viết từ trang web và lưu vào cơ sở dữ liệu
 3. **Lấy Bài Viết Từ Cơ Sở Dữ Liệu**: Truy xuất bài viết đã lưu dựa trên ID
 4. **Cập Nhật Trạng Thái Bài Viết**: Cập nhật trạng thái bài viết trong cơ sở dữ liệu
+5. **Tìm Kiếm Ảnh Google**: Tìm kiếm và lấy ảnh từ Google theo từ khóa
 
 ### Tham số cho Cào Dữ Liệu Trang Web:
 
@@ -82,6 +84,13 @@ Sau khi cài đặt, node "Web Crawler" sẽ xuất hiện trong danh sách các
 3. **Tên bảng**: Tên bảng lưu trữ bài viết
 4. **ID Bài Viết**: ID của bài viết cần cập nhật trạng thái
 5. **Trạng thái mới**: Trạng thái mới cho bài viết (Chưa xử lý/Đã xử lý/Đã bỏ qua)
+
+### Tham số cho Tìm Kiếm Ảnh Google:
+
+1. **Từ khóa tìm kiếm**: Từ khóa để tìm kiếm ảnh trên Google
+2. **Số lượng ảnh tối đa**: Số lượng ảnh muốn lấy về (mặc định: 5)
+3. **Lọc ảnh theo kích thước**: Bật/tắt tính năng lọc ảnh theo kích thước
+4. **Kích thước tối thiểu (px)**: Chỉ lấy ảnh có chiều rộng hoặc chiều cao lớn hơn giá trị này (mặc định: 500px)
 
 ### Kết quả đầu ra:
 
@@ -154,6 +163,42 @@ Sau khi cài đặt, node "Web Crawler" sẽ xuất hiện trong danh sách các
 }
 ```
 
+#### Khi Tìm Kiếm Ảnh Google:
+
+```json
+{
+  "operation": "googleImageSearch",
+  "keyword": "phong cảnh đẹp Việt Nam",
+  "imageCount": 5,
+  "requestedCount": 5,
+  "imageUrls": [
+    "https://example.com/image1.jpg",
+    "https://example.com/image2.jpg",
+    "https://example.com/image3.jpg",
+    "https://example.com/image4.jpg",
+    "https://example.com/image5.jpg"
+  ],
+  "imagesInfo": [
+    {
+      "url": "https://example.com/image1.jpg",
+      "width": 1200,
+      "height": 800
+    },
+    // ... thông tin các ảnh khác
+  ],
+  "filterDetails": {
+    "filtered": true,
+    "minImageSize": 500,
+    "totalFound": 25,
+    "processedCount": 5,
+    "skipped": {
+      "small": 8,
+      "error": 3
+    }
+  }
+}
+```
+
 ## Ví dụ workflow
 
 1. Sử dụng node "Web Crawler" để cào dữ liệu từ một trang tin tức, lọc hình ảnh lớn hơn 500px
@@ -161,6 +206,7 @@ Sau khi cài đặt, node "Web Crawler" sẽ xuất hiện trong danh sách các
 3. Sử dụng thao tác "Lấy Bài Viết Ngẫu Nhiên" để lấy nội dung và lưu vào cơ sở dữ liệu
 4. Xử lý và đăng bài viết lên nền tảng của bạn bằng các node khác
 5. Sau khi đăng xong, sử dụng thao tác "Cập Nhật Trạng Thái Bài Viết" để đánh dấu bài viết là "done"
+6. Sử dụng thao tác "Tìm Kiếm Ảnh Google" để tìm ảnh liên quan đến nội dung bài viết, làm phong phú thêm nội dung
 
 ## Lưu ý
 
@@ -184,13 +230,13 @@ Bộ test bao gồm:
 - Kiểm thử thao tác lấy bài viết ngẫu nhiên
 - Kiểm thử các thao tác truy vấn và cập nhật cơ sở dữ liệu
 
-## Cập nhật mới nhất (v1.3.5)
+## Cập nhật mới nhất (v1.4.0)
 
-Trong phiên bản 1.3.5, chúng tôi đã cải thiện:
-- Hỗ trợ xử lý và lọc ảnh base64
-- Sửa lỗi khi lọc ảnh theo kích thước
-- Cải thiện logic lọc để loại bỏ icon, avatar và sticker có kích thước nhỏ
-- Bổ sung thông tin thống kê về số lượng ảnh đã bỏ qua
+Trong phiên bản 1.4.0, chúng tôi đã thêm:
+- Thao tác "Tìm Kiếm Ảnh Google" cho phép tìm kiếm ảnh theo từ khóa
+- Hỗ trợ lọc ảnh theo kích thước cho kết quả tìm kiếm
+- Tùy chọn giới hạn số lượng ảnh tải về
+- Thông tin chi tiết về kích thước của từng ảnh tìm được
 
 ## Các bản cập nhật trước
 
