@@ -2,7 +2,16 @@
 
 Tất cả các thay đổi đáng chú ý của dự án sẽ được ghi lại trong file này.
 
+## [1.3.4] - 2024-03-22
+
+### Thay đổi
+- Cập nhật biểu tượng cho node n8n
+- Tối ưu hóa hiệu suất cào dữ liệu
+
 ## [1.3.3] - 2024-03-22
+
+### Thêm mới
+- Thêm biểu tượng cho node n8n
 
 ### Cố định
 - Cải thiện test suite cho thao tác randomArticle

@@ -1,4 +1,4 @@
-# Node Web Crawler cho n8n (v1.3.3)
+# Node Web Crawler cho n8n (v1.3.4)
 
 Node tùy chỉnh cho n8n giúp cào dữ liệu từ trang web, trích xuất nội dung văn bản và liên kết hình ảnh, lọc hình ảnh theo kích thước và lưu trữ bài viết vào cơ sở dữ liệu.
 
@@ -181,9 +181,16 @@ Bộ test bao gồm:
 - Kiểm thử thao tác lấy bài viết ngẫu nhiên
 - Kiểm thử các thao tác truy vấn và cập nhật cơ sở dữ liệu
 
-## Cập nhật mới nhất (v1.3.3)
+## Cập nhật mới nhất (v1.3.4)
 
-Trong phiên bản 1.3.3, chúng tôi đã cải thiện:
+Trong phiên bản 1.3.4, chúng tôi đã cải thiện:
+- Cập nhật biểu tượng cho node n8n
+- Tối ưu hóa hiệu suất cào dữ liệu
+
+## Các bản cập nhật trước
+
+### Phiên bản 1.3.3
+- Thêm biểu tượng cho node n8n
 - Bộ kiểm thử cho thao tác randomArticle
 - Sửa lỗi TypeScript trong các file test
-- Tối ưu hóa quy trình kiểm thử với mocks chính xác hơn 
+- Tối ưu hóa quy trình kiểm thử với mocks chính xác hơn

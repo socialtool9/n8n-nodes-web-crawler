@@ -4,6 +4,7 @@ exports.nodeDescription = void 0;
 exports.nodeDescription = {
     displayName: 'Web Crawler',
     name: 'webCrawler',
+    icon: 'file:icon.png',
     group: ['transform'],
     version: 1,
     description: 'Truy cập URL và lấy nội dung văn bản cùng đường dẫn hình ảnh',
