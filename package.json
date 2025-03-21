@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-web-crawler",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Node n8n để cào dữ liệu web, trích xuất văn bản và hình ảnh",
   "main": "index.js",
   "scripts": {
