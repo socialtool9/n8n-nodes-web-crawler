@@ -2,6 +2,13 @@
 
 Tất cả các thay đổi đáng chú ý của dự án sẽ được ghi lại trong file này.
 
+## [1.5.1] - 2024-03-24
+
+### Cố định
+- Sửa cấu trúc thư mục và cấu hình package.json để phù hợp với n8n
+- Tái cấu trúc file để đảm bảo n8n có thể tải node đúng cách
+- Cập nhật đường dẫn file trong package.json
+
 ## [1.5.0] - 2024-03-23
 
 ### Thêm mới
