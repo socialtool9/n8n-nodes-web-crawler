@@ -2,12 +2,7 @@ import { IExecuteFunctions } from 'n8n-workflow';
 import { INodeExecutionData, INodeType, INodeTypeDescription, NodeConnectionType } from 'n8n-workflow';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
-import * as mysql from 'mysql2/promise';
-import * as pg from 'pg';
 import { URL } from 'url';
-import { promisify } from 'util';
-import { createReadStream } from 'fs';
-import { pipeline } from 'stream';
 import sizeOf from 'image-size';
 
 export class WebCrawler implements INodeType {
@@ -38,17 +33,7 @@ export class WebCrawler implements INodeType {
 					{
 						name: 'Lấy Bài Viết Ngẫu Nhiên',
 						value: 'randomArticle',
-						description: 'Lấy ngẫu nhiên một bài viết từ trang web và lưu vào cơ sở dữ liệu',
-					},
-					{
-						name: 'Lấy Bài Viết Từ Cơ Sở Dữ Liệu',
-						value: 'getFromDatabase',
-						description: 'Lấy bài viết đã lưu từ cơ sở dữ liệu',
-					},
-					{
-						name: 'Cập Nhật Trạng Thái Bài Viết',
-						value: 'updateArticleStatus',
-						description: 'Cập nhật trạng thái bài viết trong cơ sở dữ liệu',
+						description: 'Lấy ngẫu nhiên một bài viết từ trang web',
 					},
 				],
 			},
@@ -171,97 +156,23 @@ export class WebCrawler implements INodeType {
 				},
 			},
 			{
-				displayName: 'Loại cơ sở dữ liệu',
-				name: 'databaseType',
-				type: 'options',
-				default: 'mysql',
-				options: [
-					{
-						name: 'MySQL',
-						value: 'mysql',
-					},
-					{
-						name: 'PostgreSQL',
-						value: 'postgresql',
-					},
-				],
-				displayOptions: {
-					show: {
-						operation: ['randomArticle', 'getFromDatabase', 'updateArticleStatus'],
-					},
-				},
-			},
-			{
-				displayName: 'Kết nối cơ sở dữ liệu',
-				name: 'databaseConnection',
+				displayName: 'Selector cho nội dung bài viết',
+				name: 'contentSelector',
 				type: 'string',
-				default: '',
-				placeholder: 'mysql://user:password@localhost:3306/database',
-				description: 'Chuỗi kết nối đến cơ sở dữ liệu',
-				required: true,
+				default: '.content, .entry, .post-content',
+				description: 'CSS selector để lấy nội dung bài viết',
 				displayOptions: {
 					show: {
-						operation: ['randomArticle', 'getFromDatabase', 'updateArticleStatus'],
+						operation: ['randomArticle'],
 					},
 				},
 			},
 			{
-				displayName: 'Tên bảng',
-				name: 'tableName',
-				type: 'string',
-				default: 'web_articles',
-				description: 'Tên bảng lưu trữ bài viết',
-				displayOptions: {
-					show: {
-						operation: ['randomArticle', 'getFromDatabase', 'updateArticleStatus'],
-					},
-				},
-			},
-			{
-				displayName: 'ID Bài Viết',
-				name: 'articleId',
-				type: 'string',
-				default: '',
-				description: 'ID của bài viết cần cập nhật trạng thái',
-				required: true,
-				displayOptions: {
-					show: {
-						operation: ['getFromDatabase', 'updateArticleStatus'],
-					},
-				},
-			},
-			{
-				displayName: 'Trạng thái mới',
-				name: 'newStatus',
-				type: 'options',
-				default: 'done',
-				options: [
-					{
-						name: 'Chưa xử lý',
-						value: 'pending',
-					},
-					{
-						name: 'Đã xử lý',
-						value: 'done',
-					},
-					{
-						name: 'Đã bỏ qua',
-						value: 'skipped',
-					},
-				],
-				description: 'Trạng thái mới cho bài viết',
-				displayOptions: {
-					show: {
-						operation: ['updateArticleStatus'],
-					},
-				},
-			},
-			{
-				displayName: 'Tạo bảng nếu chưa tồn tại',
-				name: 'createTableIfNotExists',
+				displayName: 'Lấy nội dung đầy đủ của bài viết',
+				name: 'fetchFullContent',
 				type: 'boolean',
 				default: true,
-				description: 'Tạo bảng trong cơ sở dữ liệu nếu chưa tồn tại',
+				description: 'Tự động truy cập vào liên kết bài viết để lấy nội dung đầy đủ',
 				displayOptions: {
 					show: {
 						operation: ['randomArticle'],
@@ -270,147 +181,6 @@ export class WebCrawler implements INodeType {
 			},
 		],
 	};
-
-	// Hàm để tạo bảng MySQL
-	private static async createMySQLTable(connection: mysql.Connection, tableName: string): Promise<void> {
-		const createTableQuery = `
-			CREATE TABLE IF NOT EXISTS ${tableName} (
-				id VARCHAR(100) PRIMARY KEY,
-				title VARCHAR(500) NOT NULL,
-				link VARCHAR(1000) NOT NULL,
-				content TEXT,
-				status VARCHAR(20) DEFAULT 'pending',
-				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-				updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-			)
-		`;
-
-		await connection.query(createTableQuery);
-	}
-
-	// Hàm để tạo bảng PostgreSQL
-	private static async createPostgresTable(client: pg.Client, tableName: string): Promise<void> {
-		// Kiểm tra xem cột status đã tồn tại chưa
-		const checkColumnQuery = `
-			DO $$
-			BEGIN
-				IF NOT EXISTS (
-					SELECT 1 FROM information_schema.columns 
-					WHERE table_name = '${tableName}' AND column_name = 'status'
-				) THEN
-					ALTER TABLE ${tableName} ADD COLUMN status VARCHAR(20) DEFAULT 'pending';
-				END IF;
-			END $$;
-		`;
-
-		const createTableQuery = `
-			CREATE TABLE IF NOT EXISTS ${tableName} (
-				id VARCHAR(100) PRIMARY KEY,
-				title VARCHAR(500) NOT NULL,
-				link VARCHAR(1000) NOT NULL,
-				content TEXT,
-				status VARCHAR(20) DEFAULT 'pending',
-				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-				updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-			)
-		`;
-
-		// Tạo trigger để cập nhật updated_at
-		const createTriggerQuery = `
-			DO $$
-			BEGIN
-				IF NOT EXISTS (
-					SELECT 1 FROM pg_trigger WHERE tgname = '${tableName}_updated_at_trigger'
-				) THEN
-					CREATE OR REPLACE FUNCTION update_timestamp()
-					RETURNS TRIGGER AS $$
-					BEGIN
-						NEW.updated_at = CURRENT_TIMESTAMP;
-						RETURN NEW;
-					END;
-					$$ LANGUAGE plpgsql;
-
-					CREATE TRIGGER ${tableName}_updated_at_trigger
-					BEFORE UPDATE ON ${tableName}
-					FOR EACH ROW
-					EXECUTE FUNCTION update_timestamp();
-				END IF;
-			END $$;
-		`;
-
-		await client.query(createTableQuery);
-		await client.query(createTriggerQuery);
-	}
-
-	// Hàm để lưu bài viết vào MySQL
-	private static async saveArticleToMySQL(
-		connection: mysql.Connection,
-		tableName: string,
-		articleId: string,
-		title: string,
-		link: string,
-		content: string = '',
-	): Promise<void> {
-		const insertQuery = `
-			INSERT INTO ${tableName} (id, title, link, content, status)
-			VALUES (?, ?, ?, ?, 'pending')
-		`;
-
-		await connection.query(insertQuery, [articleId, title, link, content]);
-	}
-
-	// Hàm để lưu bài viết vào PostgreSQL
-	private static async saveArticleToPostgres(
-		client: pg.Client,
-		tableName: string,
-		articleId: string,
-		title: string,
-		link: string,
-		content: string = '',
-	): Promise<void> {
-		const insertQuery = `
-			INSERT INTO ${tableName} (id, title, link, content, status)
-			VALUES ($1, $2, $3, $4, 'pending')
-		`;
-
-		await client.query(insertQuery, [articleId, title, link, content]);
-	}
-
-	// Hàm để lấy bài viết từ MySQL theo ID
-	private static async getArticleFromMySQL(
-		connection: mysql.Connection,
-		tableName: string,
-		articleId: string,
-	): Promise<any> {
-		const selectQuery = `
-			SELECT * FROM ${tableName} WHERE id = ?
-		`;
-
-		const [rows] = await connection.query(selectQuery, [articleId]);
-		if (Array.isArray(rows) && rows.length > 0) {
-			return rows[0];
-		}
-		
-		throw new Error(`Không tìm thấy bài viết với ID: ${articleId}`);
-	}
-
-	// Hàm để lấy bài viết từ PostgreSQL theo ID
-	private static async getArticleFromPostgres(
-		client: pg.Client,
-		tableName: string,
-		articleId: string,
-	): Promise<any> {
-		const selectQuery = `
-			SELECT * FROM ${tableName} WHERE id = $1
-		`;
-
-		const result = await client.query(selectQuery, [articleId]);
-		if (result.rows.length > 0) {
-			return result.rows[0];
-		}
-		
-		throw new Error(`Không tìm thấy bài viết với ID: ${articleId}`);
-	}
 
 	// Hàm kiểm tra kích thước thực tế của hình ảnh
 	private static async getImageSize(imageUrl: string): Promise<{ width?: number; height?: number }> {
@@ -428,47 +198,6 @@ export class WebCrawler implements INodeType {
 		}
 	}
 
-	// Hàm để cập nhật trạng thái bài viết trong MySQL
-	private static async updateArticleStatusInMySQL(
-		connection: mysql.Connection,
-		tableName: string,
-		articleId: string,
-		status: string,
-	): Promise<void> {
-		const updateQuery = `
-			UPDATE ${tableName} 
-			SET status = ?
-			WHERE id = ?
-		`;
-
-		const [result] = await connection.query(updateQuery, [status, articleId]);
-		
-		// @ts-ignore
-		if (result.affectedRows === 0) {
-			throw new Error(`Không tìm thấy bài viết với ID: ${articleId}`);
-		}
-	}
-
-	// Hàm để cập nhật trạng thái bài viết trong PostgreSQL
-	private static async updateArticleStatusInPostgres(
-		client: pg.Client,
-		tableName: string,
-		articleId: string,
-		status: string,
-	): Promise<void> {
-		const updateQuery = `
-			UPDATE ${tableName} 
-			SET status = $1
-			WHERE id = $2
-		`;
-
-		const result = await client.query(updateQuery, [status, articleId]);
-		
-		if (result.rowCount === 0) {
-			throw new Error(`Không tìm thấy bài viết với ID: ${articleId}`);
-		}
-	}
-
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const items = this.getInputData();
 		const returnData: INodeExecutionData[] = [];
@@ -479,7 +208,7 @@ export class WebCrawler implements INodeType {
 		for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
 			try {
 				if (operation === 'crawlPage') {
-					// Thực hiện cào dữ liệu trang web như trước đây
+					// Thực hiện cào dữ liệu trang web
 					const url = this.getNodeParameter('url', itemIndex) as string;
 					const textSelector = this.getNodeParameter('textSelector', itemIndex) as string;
 					const imageSelector = this.getNodeParameter('imageSelector', itemIndex) as string;
@@ -595,10 +324,8 @@ export class WebCrawler implements INodeType {
 					const articleSelector = this.getNodeParameter('articleSelector', itemIndex) as string;
 					const titleSelector = this.getNodeParameter('titleSelector', itemIndex) as string;
 					const linkSelector = this.getNodeParameter('linkSelector', itemIndex) as string;
-					const databaseType = this.getNodeParameter('databaseType', itemIndex) as string;
-					const databaseConnection = this.getNodeParameter('databaseConnection', itemIndex) as string;
-					const tableName = this.getNodeParameter('tableName', itemIndex) as string;
-					const createTableIfNotExists = this.getNodeParameter('createTableIfNotExists', itemIndex) as boolean;
+					const contentSelector = this.getNodeParameter('contentSelector', itemIndex) as string;
+					const fetchFullContent = this.getNodeParameter('fetchFullContent', itemIndex) as boolean;
 
 					// Gửi yêu cầu HTTP
 					const response = await axios.get(url);
@@ -608,7 +335,7 @@ export class WebCrawler implements INodeType {
 					const $ = cheerio.load(html);
 
 					// Tìm tất cả các bài viết
-					const articles: Array<{ title: string; link: string; content?: string }> = [];
+					const articles: Array<{ title: string; link: string; content?: string; images?: string[] }> = [];
 					$(articleSelector).each((_, articleElement) => {
 						// Trích xuất tiêu đề
 						const title = $(articleElement).find(titleSelector).first().text().trim();
@@ -625,8 +352,37 @@ export class WebCrawler implements INodeType {
 							link = `${urlObj.origin}/${link}`;
 						}
 						
+						// Trích xuất nội dung tóm tắt nếu có
+						let content = '';
+						if ($(articleElement).find(contentSelector).length > 0) {
+							content = $(articleElement).find(contentSelector).first().text().trim();
+						}
+						
+						// Trích xuất hình ảnh trong bài viết
+						const images: string[] = [];
+						$(articleElement).find('img').each((_, img) => {
+							const src = $(img).attr('src');
+							if (src) {
+								// Chuẩn hóa đường dẫn
+								let fullSrc: string;
+								if (src.startsWith('//')) {
+									fullSrc = `https:${src}`;
+								} else if (src.startsWith('/')) {
+									const urlObj = new URL(url);
+									fullSrc = `${urlObj.origin}${src}`;
+								} else if (!src.startsWith('http')) {
+									const urlObj = new URL(url);
+									fullSrc = `${urlObj.origin}/${src}`;
+								} else {
+									fullSrc = src;
+								}
+								
+								images.push(fullSrc);
+							}
+						});
+						
 						if (title && link) {
-							articles.push({ title, link });
+							articles.push({ title, link, content, images });
 						}
 					});
 
@@ -639,231 +395,56 @@ export class WebCrawler implements INodeType {
 					const randomIndex = Math.floor(Math.random() * articles.length);
 					const selectedArticle = articles[randomIndex];
 
+					// Lấy nội dung đầy đủ nếu cần
+					if (fetchFullContent && selectedArticle.link) {
+						try {
+							const articleResponse = await axios.get(selectedArticle.link);
+							const articleHtml = articleResponse.data;
+							const $article = cheerio.load(articleHtml);
+							
+							// Cập nhật nội dung
+							selectedArticle.content = $article(contentSelector).text().trim() || $article('body').text().trim();
+							
+							// Cập nhật hình ảnh
+							$article('img').each((_, img) => {
+								const src = $article(img).attr('src');
+								if (src) {
+									// Chuẩn hóa đường dẫn
+									let fullSrc: string;
+									if (src.startsWith('//')) {
+										fullSrc = `https:${src}`;
+									} else if (src.startsWith('/')) {
+										const urlObj = new URL(selectedArticle.link);
+										fullSrc = `${urlObj.origin}${src}`;
+									} else if (!src.startsWith('http')) {
+										const urlObj = new URL(selectedArticle.link);
+										fullSrc = `${urlObj.origin}/${src}`;
+									} else {
+										fullSrc = src;
+									}
+									
+									// Thêm vào danh sách nếu chưa có
+									if (!selectedArticle.images?.includes(fullSrc)) {
+										if (!selectedArticle.images) selectedArticle.images = [];
+										selectedArticle.images.push(fullSrc);
+									}
+								}
+							});
+						} catch (error) {
+							console.error(`Không thể lấy nội dung từ ${selectedArticle.link}:`, error);
+						}
+					}
+					
 					// Tạo ID ngẫu nhiên cho bài viết
 					const articleId = `article_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-					
-					// Kết nối và lưu vào cơ sở dữ liệu
-					let dbResult;
-					if (databaseType === 'mysql') {
-						const connection = await mysql.createConnection(databaseConnection);
-						
-						try {
-							if (createTableIfNotExists) {
-								await WebCrawler.createMySQLTable(connection, tableName);
-							}
-							
-							// Lấy nội dung bài viết nếu cần
-							let content = '';
-							try {
-								const articleResponse = await axios.get(selectedArticle.link);
-								const articleHtml = articleResponse.data;
-								const $article = cheerio.load(articleHtml);
-								content = $article('body').text().trim();
-								selectedArticle.content = content;
-							} catch (error) {
-								// Bỏ qua lỗi khi lấy nội dung bài viết
-								console.error(`Không thể lấy nội dung từ ${selectedArticle.link}:`, error);
-							}
-							
-							await WebCrawler.saveArticleToMySQL(
-								connection,
-								tableName,
-								articleId,
-								selectedArticle.title,
-								selectedArticle.link,
-								content,
-							);
-							
-							dbResult = {
-								success: true,
-								id: articleId,
-								type: 'mysql',
-							};
-						} finally {
-							await connection.end();
-						}
-					} else if (databaseType === 'postgresql') {
-						const client = new pg.Client(databaseConnection);
-						await client.connect();
-						
-						try {
-							if (createTableIfNotExists) {
-								await WebCrawler.createPostgresTable(client, tableName);
-							}
-							
-							// Lấy nội dung bài viết nếu cần
-							let content = '';
-							try {
-								const articleResponse = await axios.get(selectedArticle.link);
-								const articleHtml = articleResponse.data;
-								const $article = cheerio.load(articleHtml);
-								content = $article('body').text().trim();
-								selectedArticle.content = content;
-							} catch (error) {
-								// Bỏ qua lỗi khi lấy nội dung bài viết
-								console.error(`Không thể lấy nội dung từ ${selectedArticle.link}:`, error);
-							}
-							
-							await WebCrawler.saveArticleToPostgres(
-								client,
-								tableName,
-								articleId,
-								selectedArticle.title,
-								selectedArticle.link,
-								content,
-							);
-							
-							dbResult = {
-								success: true,
-								id: articleId,
-								type: 'postgresql',
-							};
-						} finally {
-							await client.end();
-						}
-					} else {
-						throw new Error(`Loại cơ sở dữ liệu không được hỗ trợ: ${databaseType}`);
-					}
 					
 					// Chuẩn bị dữ liệu đầu ra
 					const newItem: INodeExecutionData = {
 						json: {
 							operation: 'randomArticle',
-							databaseType,
 							articleId,
-							tableName,
 							article: selectedArticle,
-							database: dbResult,
-							message: `Đã lưu bài viết "${selectedArticle.title}" vào cơ sở dữ liệu ${databaseType}`,
-						},
-					};
-
-					returnData.push(newItem);
-				} else if (operation === 'getFromDatabase') {
-					// Lấy các tham số
-					const databaseType = this.getNodeParameter('databaseType', itemIndex) as string;
-					const databaseConnection = this.getNodeParameter('databaseConnection', itemIndex) as string;
-					const tableName = this.getNodeParameter('tableName', itemIndex) as string;
-					const articleId = this.getNodeParameter('articleId', itemIndex) as string;
-
-					// Lấy dữ liệu từ cơ sở dữ liệu
-					let article;
-					if (databaseType === 'mysql') {
-						const connection = await mysql.createConnection(databaseConnection);
-						
-						try {
-							article = await WebCrawler.getArticleFromMySQL(connection, tableName, articleId);
-						} finally {
-							await connection.end();
-						}
-					} else if (databaseType === 'postgresql') {
-						const client = new pg.Client(databaseConnection);
-						await client.connect();
-						
-						try {
-							article = await WebCrawler.getArticleFromPostgres(client, tableName, articleId);
-						} finally {
-							await client.end();
-						}
-					} else {
-						throw new Error(`Loại cơ sở dữ liệu không được hỗ trợ: ${databaseType}`);
-					}
-					
-					// Nếu có link bài viết, cập nhật lại nội dung mới nhất
-					if (article && article.link) {
-						try {
-							const articleResponse = await axios.get(article.link);
-							const articleHtml = articleResponse.data;
-							const $article = cheerio.load(articleHtml);
-							const freshContent = $article('body').text().trim();
-							
-							article.fresh_content = freshContent;
-						} catch (error) {
-							// Bỏ qua lỗi khi lấy nội dung mới
-							console.error(`Không thể lấy nội dung mới từ ${article.link}:`, error);
-						}
-					}
-					
-					// Chuẩn bị dữ liệu đầu ra
-					const newItem: INodeExecutionData = {
-						json: {
-							operation: 'getFromDatabase',
-							databaseType,
-							tableName,
-							article,
-							message: `Đã lấy bài viết từ cơ sở dữ liệu ${databaseType}`,
-						},
-					};
-
-					returnData.push(newItem);
-				} else if (operation === 'updateArticleStatus') {
-					// Lấy các tham số
-					const databaseType = this.getNodeParameter('databaseType', itemIndex) as string;
-					const databaseConnection = this.getNodeParameter('databaseConnection', itemIndex) as string;
-					const tableName = this.getNodeParameter('tableName', itemIndex) as string;
-					const articleId = this.getNodeParameter('articleId', itemIndex) as string;
-					const newStatus = this.getNodeParameter('newStatus', itemIndex) as string;
-
-					// Cập nhật trạng thái trong cơ sở dữ liệu
-					let result;
-					if (databaseType === 'mysql') {
-						const connection = await mysql.createConnection(databaseConnection);
-						
-						try {
-							await WebCrawler.updateArticleStatusInMySQL(connection, tableName, articleId, newStatus);
-							
-							// Lấy thông tin bài viết sau khi cập nhật
-							const [rows] = await connection.query(
-								`SELECT * FROM ${tableName} WHERE id = ?`,
-								[articleId]
-							);
-							
-							if (Array.isArray(rows) && rows.length > 0) {
-								result = {
-									success: true,
-									article: rows[0],
-									message: `Đã cập nhật trạng thái của bài viết thành "${newStatus}"`,
-								};
-							}
-						} finally {
-							await connection.end();
-						}
-					} else if (databaseType === 'postgresql') {
-						const client = new pg.Client(databaseConnection);
-						await client.connect();
-						
-						try {
-							await WebCrawler.updateArticleStatusInPostgres(client, tableName, articleId, newStatus);
-							
-							// Lấy thông tin bài viết sau khi cập nhật
-							const { rows } = await client.query(
-								`SELECT * FROM ${tableName} WHERE id = $1`,
-								[articleId]
-							);
-							
-							if (rows.length > 0) {
-								result = {
-									success: true,
-									article: rows[0],
-									message: `Đã cập nhật trạng thái của bài viết thành "${newStatus}"`,
-								};
-							}
-						} finally {
-							await client.end();
-						}
-					} else {
-						throw new Error(`Loại cơ sở dữ liệu không được hỗ trợ: ${databaseType}`);
-					}
-					
-					// Chuẩn bị dữ liệu đầu ra
-					const newItem: INodeExecutionData = {
-						json: {
-							operation: 'updateArticleStatus',
-							databaseType,
-							tableName,
-							articleId,
-							status: newStatus,
-							...result,
+							message: `Đã lấy bài viết "${selectedArticle.title}" từ trang web`,
 						},
 					};
 
