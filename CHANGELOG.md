@@ -2,6 +2,17 @@
 
 Tất cả các thay đổi đáng chú ý của dự án sẽ được ghi lại trong file này.
 
+## [1.3.0] - 2024-03-21
+
+### Thêm mới
+- Thêm tính năng cập nhật trạng thái bài viết (pending/done/skipped)
+- Thêm cột status trong schema cơ sở dữ liệu
+- Thêm cột updated_at để theo dõi thời gian cập nhật
+
+### Thay đổi
+- Cải thiện schema cơ sở dữ liệu với các cột trạng thái và thời gian
+- Cập nhật hàm lưu bài viết với trạng thái mặc định là "pending"
+
 ## [1.2.0] - 2024-03-21
 
 ### Thêm mới

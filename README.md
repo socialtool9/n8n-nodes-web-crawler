@@ -10,6 +10,7 @@ Node này cho phép:
 - Trích xuất và lọc hình ảnh theo kích thước (chiều rộng hoặc chiều cao)
 - Lấy bài viết ngẫu nhiên từ trang web và lưu vào cơ sở dữ liệu MySQL hoặc PostgreSQL
 - Truy xuất bài viết đã lưu từ cơ sở dữ liệu
+- Cập nhật trạng thái bài viết (pending/done/skipped) để quản lý tiến trình xử lý
 
 ## Cài đặt
 
@@ -45,6 +46,7 @@ Sau khi cài đặt, node "Web Crawler" sẽ xuất hiện trong danh sách các
 1. **Cào Dữ Liệu Trang Web**: Trích xuất văn bản và hình ảnh từ trang web
 2. **Lấy Bài Viết Ngẫu Nhiên**: Lấy ngẫu nhiên một bài viết từ trang web và lưu vào cơ sở dữ liệu
 3. **Lấy Bài Viết Từ Cơ Sở Dữ Liệu**: Truy xuất bài viết đã lưu dựa trên ID
+4. **Cập Nhật Trạng Thái Bài Viết**: Cập nhật trạng thái bài viết trong cơ sở dữ liệu
 
 ### Tham số cho Cào Dữ Liệu Trang Web:
 
@@ -72,6 +74,14 @@ Sau khi cài đặt, node "Web Crawler" sẽ xuất hiện trong danh sách các
 2. **Kết nối cơ sở dữ liệu**: Chuỗi kết nối đến cơ sở dữ liệu
 3. **Tên bảng**: Tên bảng lưu trữ bài viết
 4. **ID Bài Viết**: ID của bài viết cần lấy
+
+### Tham số cho Cập Nhật Trạng Thái Bài Viết:
+
+1. **Loại cơ sở dữ liệu**: MySQL hoặc PostgreSQL
+2. **Kết nối cơ sở dữ liệu**: Chuỗi kết nối đến cơ sở dữ liệu
+3. **Tên bảng**: Tên bảng lưu trữ bài viết
+4. **ID Bài Viết**: ID của bài viết cần cập nhật trạng thái
+5. **Trạng thái mới**: Trạng thái mới cho bài viết (Chưa xử lý/Đã xử lý/Đã bỏ qua)
 
 ### Kết quả đầu ra:
 
@@ -106,7 +116,8 @@ Sau khi cài đặt, node "Web Crawler" sẽ xuất hiện trong danh sách các
   "article": {
     "title": "Tiêu đề bài viết",
     "link": "https://example.com/article",
-    "content": "Nội dung bài viết..."
+    "content": "Nội dung bài viết...",
+    "status": "pending"
   },
   "database": {
     "success": true,
@@ -117,15 +128,41 @@ Sau khi cài đặt, node "Web Crawler" sẽ xuất hiện trong danh sách các
 }
 ```
 
+#### Khi Cập Nhật Trạng Thái Bài Viết:
+
+```json
+{
+  "operation": "updateArticleStatus",
+  "databaseType": "mysql",
+  "tableName": "web_articles",
+  "articleId": "article_1647867542123_456",
+  "status": "done",
+  "success": true,
+  "article": {
+    "id": "article_1647867542123_456",
+    "title": "Tiêu đề bài viết",
+    "link": "https://example.com/article",
+    "content": "Nội dung bài viết...",
+    "status": "done",
+    "created_at": "2024-03-21T10:15:30Z",
+    "updated_at": "2024-03-21T11:20:45Z"
+  },
+  "message": "Đã cập nhật trạng thái của bài viết thành \"done\""
+}
+```
+
 ## Ví dụ workflow
 
 1. Sử dụng node "Web Crawler" để cào dữ liệu từ một trang tin tức, lọc hình ảnh lớn hơn 500px
 2. Sử dụng node "HTTP Request" để tải xuống những hình ảnh đã lọc
-3. Hoặc sử dụng thao tác "Lấy Bài Viết Ngẫu Nhiên" để lấy nội dung và lưu vào cơ sở dữ liệu
+3. Sử dụng thao tác "Lấy Bài Viết Ngẫu Nhiên" để lấy nội dung và lưu vào cơ sở dữ liệu
+4. Xử lý và đăng bài viết lên nền tảng của bạn bằng các node khác
+5. Sau khi đăng xong, sử dụng thao tác "Cập Nhật Trạng Thái Bài Viết" để đánh dấu bài viết là "done"
 
 ## Lưu ý
 
 - Một số trang web có thể chặn các yêu cầu cào dữ liệu, vì vậy hãy cân nhắc sử dụng proxy hoặc User-Agent tùy chỉnh nếu cần
 - Luôn tuân thủ các quy tắc và điều khoản sử dụng của trang web khi cào dữ liệu
 - Việc kiểm tra kích thước thực tế của hình ảnh sẽ làm chậm quá trình xử lý do phải tải mỗi hình ảnh
-- Đảm bảo chuỗi kết nối đến cơ sở dữ liệu chính xác để tránh lỗi khi lưu trữ bài viết 
+- Đảm bảo chuỗi kết nối đến cơ sở dữ liệu chính xác để tránh lỗi khi lưu trữ bài viết
+- Bài viết với trạng thái "done" đã được xử lý và nên bỏ qua, giúp tránh đăng trùng lặp 

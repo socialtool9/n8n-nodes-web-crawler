@@ -45,6 +45,11 @@ export class WebCrawler implements INodeType {
 						value: 'getFromDatabase',
 						description: 'Lấy bài viết đã lưu từ cơ sở dữ liệu',
 					},
+					{
+						name: 'Cập Nhật Trạng Thái Bài Viết',
+						value: 'updateArticleStatus',
+						description: 'Cập nhật trạng thái bài viết trong cơ sở dữ liệu',
+					},
 				],
 			},
 
@@ -182,7 +187,7 @@ export class WebCrawler implements INodeType {
 				],
 				displayOptions: {
 					show: {
-						operation: ['randomArticle', 'getFromDatabase'],
+						operation: ['randomArticle', 'getFromDatabase', 'updateArticleStatus'],
 					},
 				},
 			},
@@ -196,7 +201,7 @@ export class WebCrawler implements INodeType {
 				required: true,
 				displayOptions: {
 					show: {
-						operation: ['randomArticle', 'getFromDatabase'],
+						operation: ['randomArticle', 'getFromDatabase', 'updateArticleStatus'],
 					},
 				},
 			},
@@ -208,7 +213,7 @@ export class WebCrawler implements INodeType {
 				description: 'Tên bảng lưu trữ bài viết',
 				displayOptions: {
 					show: {
-						operation: ['randomArticle', 'getFromDatabase'],
+						operation: ['randomArticle', 'getFromDatabase', 'updateArticleStatus'],
 					},
 				},
 			},
@@ -217,10 +222,37 @@ export class WebCrawler implements INodeType {
 				name: 'articleId',
 				type: 'string',
 				default: '',
-				description: 'ID của bài viết cần lấy từ cơ sở dữ liệu',
+				description: 'ID của bài viết cần cập nhật trạng thái',
+				required: true,
 				displayOptions: {
 					show: {
-						operation: ['getFromDatabase'],
+						operation: ['getFromDatabase', 'updateArticleStatus'],
+					},
+				},
+			},
+			{
+				displayName: 'Trạng thái mới',
+				name: 'newStatus',
+				type: 'options',
+				default: 'done',
+				options: [
+					{
+						name: 'Chưa xử lý',
+						value: 'pending',
+					},
+					{
+						name: 'Đã xử lý',
+						value: 'done',
+					},
+					{
+						name: 'Đã bỏ qua',
+						value: 'skipped',
+					},
+				],
+				description: 'Trạng thái mới cho bài viết',
+				displayOptions: {
+					show: {
+						operation: ['updateArticleStatus'],
 					},
 				},
 			},
@@ -247,7 +279,9 @@ export class WebCrawler implements INodeType {
 				title VARCHAR(500) NOT NULL,
 				link VARCHAR(1000) NOT NULL,
 				content TEXT,
-				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+				status VARCHAR(20) DEFAULT 'pending',
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+				updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 			)
 		`;
 
@@ -256,17 +290,56 @@ export class WebCrawler implements INodeType {
 
 	// Hàm để tạo bảng PostgreSQL
 	private static async createPostgresTable(client: pg.Client, tableName: string): Promise<void> {
+		// Kiểm tra xem cột status đã tồn tại chưa
+		const checkColumnQuery = `
+			DO $$
+			BEGIN
+				IF NOT EXISTS (
+					SELECT 1 FROM information_schema.columns 
+					WHERE table_name = '${tableName}' AND column_name = 'status'
+				) THEN
+					ALTER TABLE ${tableName} ADD COLUMN status VARCHAR(20) DEFAULT 'pending';
+				END IF;
+			END $$;
+		`;
+
 		const createTableQuery = `
 			CREATE TABLE IF NOT EXISTS ${tableName} (
 				id VARCHAR(100) PRIMARY KEY,
 				title VARCHAR(500) NOT NULL,
 				link VARCHAR(1000) NOT NULL,
 				content TEXT,
-				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+				status VARCHAR(20) DEFAULT 'pending',
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+				updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 			)
 		`;
 
+		// Tạo trigger để cập nhật updated_at
+		const createTriggerQuery = `
+			DO $$
+			BEGIN
+				IF NOT EXISTS (
+					SELECT 1 FROM pg_trigger WHERE tgname = '${tableName}_updated_at_trigger'
+				) THEN
+					CREATE OR REPLACE FUNCTION update_timestamp()
+					RETURNS TRIGGER AS $$
+					BEGIN
+						NEW.updated_at = CURRENT_TIMESTAMP;
+						RETURN NEW;
+					END;
+					$$ LANGUAGE plpgsql;
+
+					CREATE TRIGGER ${tableName}_updated_at_trigger
+					BEFORE UPDATE ON ${tableName}
+					FOR EACH ROW
+					EXECUTE FUNCTION update_timestamp();
+				END IF;
+			END $$;
+		`;
+
 		await client.query(createTableQuery);
+		await client.query(createTriggerQuery);
 	}
 
 	// Hàm để lưu bài viết vào MySQL
@@ -279,8 +352,8 @@ export class WebCrawler implements INodeType {
 		content: string = '',
 	): Promise<void> {
 		const insertQuery = `
-			INSERT INTO ${tableName} (id, title, link, content)
-			VALUES (?, ?, ?, ?)
+			INSERT INTO ${tableName} (id, title, link, content, status)
+			VALUES (?, ?, ?, ?, 'pending')
 		`;
 
 		await connection.query(insertQuery, [articleId, title, link, content]);
@@ -296,8 +369,8 @@ export class WebCrawler implements INodeType {
 		content: string = '',
 	): Promise<void> {
 		const insertQuery = `
-			INSERT INTO ${tableName} (id, title, link, content)
-			VALUES ($1, $2, $3, $4)
+			INSERT INTO ${tableName} (id, title, link, content, status)
+			VALUES ($1, $2, $3, $4, 'pending')
 		`;
 
 		await client.query(insertQuery, [articleId, title, link, content]);
@@ -352,6 +425,47 @@ export class WebCrawler implements INodeType {
 		} catch (error) {
 			console.error(`Lỗi khi lấy kích thước hình ảnh ${imageUrl}:`, error);
 			return { width: undefined, height: undefined };
+		}
+	}
+
+	// Hàm để cập nhật trạng thái bài viết trong MySQL
+	private static async updateArticleStatusInMySQL(
+		connection: mysql.Connection,
+		tableName: string,
+		articleId: string,
+		status: string,
+	): Promise<void> {
+		const updateQuery = `
+			UPDATE ${tableName} 
+			SET status = ?
+			WHERE id = ?
+		`;
+
+		const [result] = await connection.query(updateQuery, [status, articleId]);
+		
+		// @ts-ignore
+		if (result.affectedRows === 0) {
+			throw new Error(`Không tìm thấy bài viết với ID: ${articleId}`);
+		}
+	}
+
+	// Hàm để cập nhật trạng thái bài viết trong PostgreSQL
+	private static async updateArticleStatusInPostgres(
+		client: pg.Client,
+		tableName: string,
+		articleId: string,
+		status: string,
+	): Promise<void> {
+		const updateQuery = `
+			UPDATE ${tableName} 
+			SET status = $1
+			WHERE id = $2
+		`;
+
+		const result = await client.query(updateQuery, [status, articleId]);
+		
+		if (result.rowCount === 0) {
+			throw new Error(`Không tìm thấy bài viết với ID: ${articleId}`);
 		}
 	}
 
@@ -678,6 +792,78 @@ export class WebCrawler implements INodeType {
 							tableName,
 							article,
 							message: `Đã lấy bài viết từ cơ sở dữ liệu ${databaseType}`,
+						},
+					};
+
+					returnData.push(newItem);
+				} else if (operation === 'updateArticleStatus') {
+					// Lấy các tham số
+					const databaseType = this.getNodeParameter('databaseType', itemIndex) as string;
+					const databaseConnection = this.getNodeParameter('databaseConnection', itemIndex) as string;
+					const tableName = this.getNodeParameter('tableName', itemIndex) as string;
+					const articleId = this.getNodeParameter('articleId', itemIndex) as string;
+					const newStatus = this.getNodeParameter('newStatus', itemIndex) as string;
+
+					// Cập nhật trạng thái trong cơ sở dữ liệu
+					let result;
+					if (databaseType === 'mysql') {
+						const connection = await mysql.createConnection(databaseConnection);
+						
+						try {
+							await WebCrawler.updateArticleStatusInMySQL(connection, tableName, articleId, newStatus);
+							
+							// Lấy thông tin bài viết sau khi cập nhật
+							const [rows] = await connection.query(
+								`SELECT * FROM ${tableName} WHERE id = ?`,
+								[articleId]
+							);
+							
+							if (Array.isArray(rows) && rows.length > 0) {
+								result = {
+									success: true,
+									article: rows[0],
+									message: `Đã cập nhật trạng thái của bài viết thành "${newStatus}"`,
+								};
+							}
+						} finally {
+							await connection.end();
+						}
+					} else if (databaseType === 'postgresql') {
+						const client = new pg.Client(databaseConnection);
+						await client.connect();
+						
+						try {
+							await WebCrawler.updateArticleStatusInPostgres(client, tableName, articleId, newStatus);
+							
+							// Lấy thông tin bài viết sau khi cập nhật
+							const { rows } = await client.query(
+								`SELECT * FROM ${tableName} WHERE id = $1`,
+								[articleId]
+							);
+							
+							if (rows.length > 0) {
+								result = {
+									success: true,
+									article: rows[0],
+									message: `Đã cập nhật trạng thái của bài viết thành "${newStatus}"`,
+								};
+							}
+						} finally {
+							await client.end();
+						}
+					} else {
+						throw new Error(`Loại cơ sở dữ liệu không được hỗ trợ: ${databaseType}`);
+					}
+					
+					// Chuẩn bị dữ liệu đầu ra
+					const newItem: INodeExecutionData = {
+						json: {
+							operation: 'updateArticleStatus',
+							databaseType,
+							tableName,
+							articleId,
+							status: newStatus,
+							...result,
 						},
 					};
 
