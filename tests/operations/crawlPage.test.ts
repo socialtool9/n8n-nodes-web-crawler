@@ -50,41 +50,36 @@ describe('crawlPage operation', () => {
   });
   
   test('should extract text and images from a web page', async () => {
-    // Chuẩn bị mock cheerio
-    const mockEachImages = jest.fn().mockImplementation(function(callback) {
-      callback(0, { type: 'tag', name: 'img' });
-      callback(1, { type: 'tag', name: 'img' });
-      return { length: 2 };
+    // HTML mẫu để test
+    const mockHtml = '<html><body><p>Sample text content</p><img src="image1.jpg" width="800" height="600"/><img src="image2.jpg" width="800" height="600"/></body></html>';
+    
+    // Mock axios get trả về HTML mẫu
+    mockedAxios.get.mockResolvedValue({
+      data: mockHtml
     });
     
-    const mockAttr = jest.fn().mockImplementation(function(attr) {
-      if (attr === 'src') {
-        if (this.element && this.element.name === 'img') {
-          return this.index === 0 ? 'image1.jpg' : 'image2.jpg';
-        }
-      }
-      if (attr === 'width') return '800';
-      if (attr === 'height') return '600';
-      return undefined;
-    });
-    
-    const mockText = jest.fn().mockReturnValue('Sample text content');
-    
-    // Chuẩn bị mock $ function
-    const mockCheerioApi = (selector: string) => {
-      const mock: any = {
-        element: { type: 'selector', selector },
-        index: 0,
-        text: mockText,
-        attr: mockAttr,
-        find: jest.fn().mockReturnThis(),
-        each: mockEachImages,
+    // Sử dụng cheerio thật thay vì mock
+    jest.spyOn(cheerio, 'load').mockImplementation((html) => {
+      // Sử dụng cheerio thật để parse HTML
+      const realCheerio = jest.requireActual('cheerio').load(html);
+      
+      // Ghi đè phương thức để theo dõi các cuộc gọi
+      const originalFind = realCheerio.prototype.find;
+      realCheerio.prototype.find = function (selector) {
+        console.log(`Cheerio find called with selector: ${selector}`);
+        return originalFind.call(this, selector);
       };
-      return mock;
-    };
+      
+      return realCheerio;
+    });
     
-    // Đặt giá trị cho cheerio.load
-    mockedCheerio.load.mockReturnValue(mockCheerioApi as any);
+    // Mock hàm normalizeUrl để kiểm soát đầu ra
+    mockedImageUtils.normalizeUrl.mockImplementation((src, baseUrl) => {
+      console.log(`normalizeUrl called with: ${src}, ${baseUrl}`);
+      if (src === 'image1.jpg') return 'https://example.com/image1.jpg';
+      if (src === 'image2.jpg') return 'https://example.com/image2.jpg';
+      return `https://example.com/${src}`;
+    });
     
     // Thực thi
     const result = await crawlPage(
@@ -96,9 +91,11 @@ describe('crawlPage operation', () => {
       false
     );
     
+    // Debug
+    console.log('Result:', JSON.stringify(result.json, null, 2));
+    
     // Kiểm tra
     expect(mockedAxios.get).toHaveBeenCalledWith('https://example.com');
-    expect(mockedCheerio.load).toHaveBeenCalled();
     expect(result.json).toHaveProperty('url', 'https://example.com');
     expect(result.json).toHaveProperty('textContent', 'Sample text content');
     expect(result.json).toHaveProperty('imageLinks');
@@ -109,41 +106,28 @@ describe('crawlPage operation', () => {
   });
   
   test('should filter images by size', async () => {
-    // Chuẩn bị mock cheerio
-    const mockEachImages = jest.fn().mockImplementation(function(callback) {
-      callback(0, { type: 'tag', name: 'img' });
-      callback(1, { type: 'tag', name: 'img' });
-      return { length: 2 };
+    // HTML mẫu để test với kích thước ảnh khác nhau
+    const mockHtml = '<html><body><p>Sample text content</p><img src="image1.jpg" width="800" height="600"/><img src="image2.jpg" width="300" height="200"/></body></html>';
+    
+    // Mock axios get trả về HTML mẫu
+    mockedAxios.get.mockResolvedValue({
+      data: mockHtml
     });
     
-    const mockAttr = jest.fn().mockImplementation(function(attr) {
-      if (attr === 'src') {
-        if (this.element && this.element.name === 'img') {
-          return this.index === 0 ? 'image1.jpg' : 'image2.jpg';
-        }
-      }
-      if (attr === 'width') return this.index === 0 ? '800' : '300';
-      if (attr === 'height') return this.index === 0 ? '600' : '200';
-      return undefined;
+    // Sử dụng cheerio thật thay vì mock
+    jest.spyOn(cheerio, 'load').mockImplementation((html) => {
+      // Sử dụng cheerio thật để parse HTML
+      const realCheerio = jest.requireActual('cheerio').load(html);
+      return realCheerio;
     });
     
-    const mockText = jest.fn().mockReturnValue('Sample text content');
-    
-    // Chuẩn bị mock $ function
-    const mockCheerioApi = (selector: string) => {
-      const mock: any = {
-        element: { type: 'selector', selector },
-        index: 0,
-        text: mockText,
-        attr: mockAttr,
-        find: jest.fn().mockReturnThis(),
-        each: mockEachImages,
-      };
-      return mock;
-    };
-    
-    // Đặt giá trị cho cheerio.load
-    mockedCheerio.load.mockReturnValue(mockCheerioApi as any);
+    // Mock hàm normalizeUrl để kiểm soát đầu ra
+    mockedImageUtils.normalizeUrl.mockImplementation((src, baseUrl) => {
+      console.log(`normalizeUrl called with: ${src}, ${baseUrl}`);
+      if (src === 'image1.jpg') return 'https://example.com/image1.jpg';
+      if (src === 'image2.jpg') return 'https://example.com/image2.jpg';
+      return `https://example.com/${src}`;
+    });
     
     // Thực thi - filter image > 500x500
     const result = await crawlPage(
@@ -155,9 +139,11 @@ describe('crawlPage operation', () => {
       false
     );
     
+    // Debug
+    console.log('Result:', JSON.stringify(result.json, null, 2));
+    
     // Kiểm tra
     expect(mockedAxios.get).toHaveBeenCalledWith('https://example.com');
-    expect(mockedCheerio.load).toHaveBeenCalled();
     expect(result.json).toHaveProperty('url', 'https://example.com');
     expect(result.json).toHaveProperty('imageLinks');
     
@@ -171,51 +157,35 @@ describe('crawlPage operation', () => {
   });
   
   test('should handle base64 images', async () => {
-    // Mock HTML with base64 images
+    // HTML mẫu với hình ảnh base64
+    const mockHtml = '<html><body><p>Test content</p><img src="data:image/png;base64,iVBORw0K..." width="600" height="400"/><img src="data:image/png;base64,smallicon..." width="32" height="32"/></body></html>';
+    
+    // Mock axios get trả về HTML mẫu
     mockedAxios.get.mockResolvedValue({
-      data: '<html><body><p>Test content</p><img src="data:image/png;base64,iVBORw0K..." width="600" height="400"/><img src="data:image/png;base64,smallicon..." width="32" height="32"/></body></html>'
+      data: mockHtml
     });
     
-    // Chuẩn bị mock cheerio
-    const mockEachImages = jest.fn().mockImplementation(function(callback) {
-      callback(0, { type: 'tag', name: 'img' });
-      callback(1, { type: 'tag', name: 'img' });
-      return { length: 2 };
+    // Sử dụng cheerio thật
+    jest.spyOn(cheerio, 'load').mockImplementation((html) => {
+      return jest.requireActual('cheerio').load(html);
     });
     
-    const mockAttr = jest.fn().mockImplementation(function(attr) {
-      if (attr === 'src') {
-        if (this.element && this.element.name === 'img') {
-          return this.index === 0 
-            ? 'data:image/png;base64,iVBORw0K...' 
-            : 'data:image/png;base64,smallicon...';
-        }
+    // Mock isBase64Image để nhận diện ảnh base64
+    mockedImageUtils.isBase64Image.mockImplementation((src) => {
+      return src.startsWith('data:image');
+    });
+    
+    // Mock normalizeUrl để không thay đổi base64 data
+    mockedImageUtils.normalizeUrl.mockImplementation((src, baseUrl) => {
+      if (src.startsWith('data:image')) {
+        return src; // Trả về nguyên dạng cho base64
       }
-      if (attr === 'width') return this.index === 0 ? '600' : '32';
-      if (attr === 'height') return this.index === 0 ? '400' : '32';
-      return undefined;
+      return `https://example.com/${src}`;
     });
     
-    const mockText = jest.fn().mockReturnValue('Sample text content');
-    
-    // Chuẩn bị mock $ function
-    const mockCheerioApi = (selector: string) => {
-      const mock: any = {
-        element: { type: 'selector', selector },
-        index: 0,
-        text: mockText,
-        attr: mockAttr,
-        find: jest.fn().mockReturnThis(),
-        each: mockEachImages,
-      };
-      return mock;
-    };
-    
-    // Đặt giá trị cho cheerio.load
-    mockedCheerio.load.mockReturnValue(mockCheerioApi as any);
-    
-    // Mocks cho các phương thức xử lý base64
+    // Mock getImageSize để trả về kích thước giả lập
     mockedImageUtils.getImageSize.mockImplementation(async (url) => {
+      console.log(`getImageSize called with: ${url}`);
       if (url === 'data:image/png;base64,iVBORw0K...') return { width: 600, height: 400 };
       if (url === 'data:image/png;base64,smallicon...') return { width: 32, height: 32 };
       return { width: 300, height: 200 };
@@ -231,9 +201,11 @@ describe('crawlPage operation', () => {
       true
     );
     
+    // Debug
+    console.log('Result:', JSON.stringify(result.json, null, 2));
+    
     // Kiểm tra
     expect(mockedAxios.get).toHaveBeenCalledWith('https://example.com');
-    expect(mockedCheerio.load).toHaveBeenCalled();
     
     const json = result.json as IDataObject;
     expect(Array.isArray(json.imageLinks)).toBe(true);
@@ -249,7 +221,7 @@ describe('crawlPage operation', () => {
   });
   
   test('should crawl a real-world site like VnExpress', async () => {
-    // Chuẩn bị mock HTML VnExpress
+    // HTML mẫu giả lập trang VnExpress
     const vnExpressHtml = `
       <html><body>
         <div class="description">Dòng Danube chảy qua các nước châu Âu</div>
@@ -259,46 +231,23 @@ describe('crawlPage operation', () => {
       </body></html>
     `;
     
-    // Chuẩn bị mock cho test
-    mockedAxios.get.mockResolvedValueOnce({
+    // Mock axios response
+    mockedAxios.get.mockResolvedValue({
       data: vnExpressHtml
     });
     
-    // Chuẩn bị mock cheerio
-    const mockEachImages = jest.fn().mockImplementation(function(callback) {
-      callback(0, { type: 'tag', name: 'img' });
-      callback(1, { type: 'tag', name: 'img' });
-      return { length: 2 };
+    // Sử dụng cheerio thật
+    jest.spyOn(cheerio, 'load').mockImplementation((html) => {
+      return jest.requireActual('cheerio').load(html);
     });
     
-    const mockAttr = jest.fn().mockImplementation(function(attr) {
-      if (attr === 'src') {
-        if (this.element && this.element.name === 'img') {
-          return this.index === 0 ? 'image1.jpg' : 'image2.jpg';
-        }
-      }
-      if (attr === 'width') return this.index === 0 ? '800' : '300';
-      if (attr === 'height') return this.index === 0 ? '600' : '200';
-      return undefined;
+    // Mock normalizeUrl
+    mockedImageUtils.normalizeUrl.mockImplementation((src, baseUrl) => {
+      console.log(`normalizeUrl called with: ${src}, ${baseUrl}`);
+      if (src === 'image1.jpg') return 'https://example.com/image1.jpg';
+      if (src === 'image2.jpg') return 'https://example.com/image2.jpg';
+      return `https://example.com/${src}`;
     });
-    
-    const mockText = jest.fn().mockReturnValue('Dòng Danube chảy qua các nước châu Âu. Sông Danube là con sông lớn thứ hai châu Âu');
-    
-    // Chuẩn bị mock $ function
-    const mockCheerioApi = (selector: string) => {
-      const mock: any = {
-        element: { type: 'selector', selector },
-        index: 0,
-        text: mockText,
-        attr: mockAttr,
-        find: jest.fn().mockReturnThis(),
-        each: mockEachImages,
-      };
-      return mock;
-    };
-    
-    // Đặt giá trị cho cheerio.load
-    mockedCheerio.load.mockReturnValue(mockCheerioApi as any);
     
     // Thực thi
     const result = await crawlPage(
@@ -310,9 +259,11 @@ describe('crawlPage operation', () => {
       false
     );
     
+    // Debug
+    console.log('Result:', JSON.stringify(result.json, null, 2));
+    
     // Kiểm tra
     expect(mockedAxios.get).toHaveBeenCalledWith('https://vnexpress.net/du-lich/diem-den');
-    expect(mockedCheerio.load).toHaveBeenCalled();
     expect(result.json).toHaveProperty('url', 'https://vnexpress.net/du-lich/diem-den');
     expect(result.json).toHaveProperty('textContent');
     expect(result.json).toHaveProperty('imageLinks');

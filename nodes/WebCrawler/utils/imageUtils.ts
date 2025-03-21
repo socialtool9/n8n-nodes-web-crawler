@@ -4,7 +4,7 @@ import { URL } from 'url';
 
 // Kiểm tra xem một chuỗi có phải là ảnh base64 không
 export function isBase64Image(src: string): boolean {
-    return src.startsWith('data:image') && src.includes('base64');
+    return src.startsWith('data:image') && src.includes(';base64,');
 }
 
 // Lấy Buffer từ chuỗi base64

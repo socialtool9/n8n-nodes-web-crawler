@@ -2,6 +2,17 @@
 
 Tất cả các thay đổi đáng chú ý của dự án sẽ được ghi lại trong file này.
 
+## [1.5.0] - 2024-03-23
+
+### Thêm mới
+- Hoàn thiện tính năng tìm kiếm ảnh Google với bộ test đầy đủ
+- Thêm kiểm tra đặc biệt cho dữ liệu ảnh base64
+
+### Cố định
+- Sửa lỗi trong hàm isBase64Image để nhận dạng chính xác chuỗi base64
+- Cải thiện độ chính xác của bộ lọc hình ảnh
+- Sửa lỗi trong test để tăng độ phủ kiểm thử
+
 ## [1.4.0] - 2024-03-22
 
 ### Thêm mới

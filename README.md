@@ -1,4 +1,4 @@
-# Node Web Crawler cho n8n (v1.4.0)
+# Node Web Crawler cho n8n (v1.5.0)
 
 Node tùy chỉnh cho n8n giúp cào dữ liệu từ trang web, trích xuất nội dung văn bản và liên kết hình ảnh, lọc hình ảnh theo kích thước và lưu trữ bài viết vào cơ sở dữ liệu.
 
@@ -230,15 +230,21 @@ Bộ test bao gồm:
 - Kiểm thử thao tác lấy bài viết ngẫu nhiên
 - Kiểm thử các thao tác truy vấn và cập nhật cơ sở dữ liệu
 
-## Cập nhật mới nhất (v1.4.0)
+## Cập nhật mới nhất (v1.5.0)
 
-Trong phiên bản 1.4.0, chúng tôi đã thêm:
-- Thao tác "Tìm Kiếm Ảnh Google" cho phép tìm kiếm ảnh theo từ khóa
+Trong phiên bản 1.5.0, chúng tôi đã cải thiện:
+- Hoàn thiện tính năng tìm kiếm ảnh Google với bộ test đầy đủ
+- Thêm kiểm tra đặc biệt cho dữ liệu ảnh base64
+- Sửa lỗi trong hàm isBase64Image để nhận dạng chính xác chuỗi base64
+- Cải thiện độ chính xác của bộ lọc hình ảnh
+
+## Các bản cập nhật trước
+
+### v1.4.0
+- Thêm thao tác "Tìm Kiếm Ảnh Google" cho phép tìm kiếm ảnh theo từ khóa
 - Hỗ trợ lọc ảnh theo kích thước cho kết quả tìm kiếm
 - Tùy chọn giới hạn số lượng ảnh tải về
 - Thông tin chi tiết về kích thước của từng ảnh tìm được
-
-## Các bản cập nhật trước
 
 ### Phiên bản 1.3.4
 - Cập nhật biểu tượng cho node n8n

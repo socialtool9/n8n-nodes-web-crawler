@@ -12,7 +12,7 @@ const image_size_1 = __importDefault(require("image-size"));
 const url_1 = require("url");
 // Kiểm tra xem một chuỗi có phải là ảnh base64 không
 function isBase64Image(src) {
-    return src.startsWith('data:image') && src.includes('base64');
+    return src.startsWith('data:image') && src.includes(';base64,');
 }
 // Lấy Buffer từ chuỗi base64
 function getBase64Buffer(base64String) {
