@@ -1,3 +1,3 @@
-import { WebCrawler } from './WebCrawler';
+import { WebCrawler } from './WebCrawler/WebCrawler.node';
 
 export { WebCrawler }; 

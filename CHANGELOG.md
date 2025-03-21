@@ -2,6 +2,13 @@
 
 Tất cả các thay đổi đáng chú ý của dự án sẽ được ghi lại trong file này.
 
+## [1.5.2] - 2024-03-24
+
+### Cố định
+- Sửa lỗi "Cannot find module './nodeDescription'" khi n8n tải node
+- Điều chỉnh cấu trúc thư mục dist để đảm bảo tất cả các module được tải đúng cách
+- Đảm bảo tất cả các file phụ thuộc được sao chép vào vị trí chính xác
+
 ## [1.5.1] - 2024-03-24
 
 ### Cố định
