@@ -41,6 +41,8 @@ const axios_1 = __importDefault(require("axios"));
 const cheerio = __importStar(require("cheerio"));
 const mysql = __importStar(require("mysql2/promise"));
 const pg = __importStar(require("pg"));
+const url_1 = require("url");
+const image_size_1 = __importDefault(require("image-size"));
 class WebCrawler {
     constructor() {
         this.description = {
@@ -116,6 +118,44 @@ class WebCrawler {
                     displayOptions: {
                         show: {
                             operation: ['crawlPage'],
+                        },
+                    },
+                },
+                {
+                    displayName: 'Lọc hình ảnh theo kích thước',
+                    name: 'filterImagesBySize',
+                    type: 'boolean',
+                    default: false,
+                    description: 'Chỉ lấy hình ảnh có kích thước lớn hơn giá trị đã chỉ định',
+                    displayOptions: {
+                        show: {
+                            operation: ['crawlPage'],
+                        },
+                    },
+                },
+                {
+                    displayName: 'Kích thước tối thiểu (px)',
+                    name: 'minImageSize',
+                    type: 'number',
+                    default: 300,
+                    description: 'Chỉ lấy hình ảnh có kích thước (chiều rộng hoặc chiều cao) lớn hơn giá trị này',
+                    displayOptions: {
+                        show: {
+                            operation: ['crawlPage'],
+                            filterImagesBySize: [true],
+                        },
+                    },
+                },
+                {
+                    displayName: 'Kiểm tra kích thước thực tế của hình ảnh',
+                    name: 'checkActualImageSize',
+                    type: 'boolean',
+                    default: true,
+                    description: 'Tải hình ảnh để kiểm tra kích thước thực (chậm hơn nhưng chính xác hơn)',
+                    displayOptions: {
+                        show: {
+                            operation: ['crawlPage'],
+                            filterImagesBySize: [true],
                         },
                     },
                 },
@@ -294,6 +334,22 @@ class WebCrawler {
         }
         throw new Error(`Không tìm thấy bài viết với ID: ${articleId}`);
     }
+    // Hàm kiểm tra kích thước thực tế của hình ảnh
+    static async getImageSize(imageUrl) {
+        try {
+            const response = await axios_1.default.get(imageUrl, { responseType: 'arraybuffer' });
+            const buffer = Buffer.from(response.data, 'binary');
+            const dimensions = (0, image_size_1.default)(buffer);
+            return {
+                width: dimensions.width,
+                height: dimensions.height,
+            };
+        }
+        catch (error) {
+            console.error(`Lỗi khi lấy kích thước hình ảnh ${imageUrl}:`, error);
+            return { width: undefined, height: undefined };
+        }
+    }
     async execute() {
         const items = this.getInputData();
         const returnData = [];
@@ -306,6 +362,14 @@ class WebCrawler {
                     const url = this.getNodeParameter('url', itemIndex);
                     const textSelector = this.getNodeParameter('textSelector', itemIndex);
                     const imageSelector = this.getNodeParameter('imageSelector', itemIndex);
+                    // Tham số lọc hình ảnh theo kích thước
+                    const filterImagesBySize = this.getNodeParameter('filterImagesBySize', itemIndex, false);
+                    let minImageSize = 300;
+                    let checkActualImageSize = true;
+                    if (filterImagesBySize) {
+                        minImageSize = this.getNodeParameter('minImageSize', itemIndex, 300);
+                        checkActualImageSize = this.getNodeParameter('checkActualImageSize', itemIndex, true);
+                    }
                     // Gửi yêu cầu HTTP
                     const response = await axios_1.default.get(url);
                     const html = response.data;
@@ -314,27 +378,63 @@ class WebCrawler {
                     // Trích xuất nội dung văn bản
                     const textContent = $(textSelector).text().trim();
                     // Trích xuất tất cả các liên kết hình ảnh
-                    const imageLinks = [];
+                    const allImages = [];
                     $(imageSelector).each((_, element) => {
                         const src = $(element).attr('src');
                         if (src) {
-                            // Chuyển đổi đường dẫn tương đối thành tuyệt đối nếu cần
+                            // Kiểm tra kích thước từ thuộc tính HTML
+                            const width = parseInt($(element).attr('width') || '0', 10);
+                            const height = parseInt($(element).attr('height') || '0', 10);
+                            // Chuẩn hóa đường dẫn
+                            let fullSrc;
                             if (src.startsWith('//')) {
-                                imageLinks.push(`https:${src}`);
+                                fullSrc = `https:${src}`;
                             }
                             else if (src.startsWith('/')) {
-                                const urlObj = new URL(url);
-                                imageLinks.push(`${urlObj.origin}${src}`);
+                                const urlObj = new url_1.URL(url);
+                                fullSrc = `${urlObj.origin}${src}`;
                             }
                             else if (!src.startsWith('http')) {
-                                const urlObj = new URL(url);
-                                imageLinks.push(`${urlObj.origin}/${src}`);
+                                const urlObj = new url_1.URL(url);
+                                fullSrc = `${urlObj.origin}/${src}`;
                             }
                             else {
-                                imageLinks.push(src);
+                                fullSrc = src;
                             }
+                            allImages.push({ src: fullSrc, width, height });
                         }
                     });
+                    // Lọc hình ảnh theo kích thước
+                    let imageLinks = [];
+                    if (filterImagesBySize) {
+                        const filteredImages = [];
+                        for (const image of allImages) {
+                            // Nếu kích thước từ HTML đã đáp ứng yêu cầu, không cần kiểm tra thêm
+                            if ((image.width && image.width >= minImageSize) ||
+                                (image.height && image.height >= minImageSize)) {
+                                filteredImages.push(image.src);
+                                continue;
+                            }
+                            // Nếu cần kiểm tra kích thước thực tế và chưa biết kích thước chính xác từ HTML
+                            if (checkActualImageSize && (!image.width || !image.height)) {
+                                try {
+                                    const dimensions = await WebCrawler.getImageSize(image.src);
+                                    if ((dimensions.width && dimensions.width >= minImageSize) ||
+                                        (dimensions.height && dimensions.height >= minImageSize)) {
+                                        filteredImages.push(image.src);
+                                    }
+                                }
+                                catch (error) {
+                                    console.error(`Lỗi khi kiểm tra kích thước hình ảnh ${image.src}:`, error);
+                                }
+                            }
+                        }
+                        imageLinks = filteredImages;
+                    }
+                    else {
+                        // Nếu không lọc theo kích thước, lấy tất cả đường dẫn hình ảnh
+                        imageLinks = allImages.map(img => img.src);
+                    }
                     // Chuẩn bị dữ liệu đầu ra
                     const newItem = {
                         json: {
@@ -342,6 +442,14 @@ class WebCrawler {
                             textContent,
                             imageLinks,
                             imageCount: imageLinks.length,
+                            filterDetails: filterImagesBySize ? {
+                                filtered: true,
+                                minImageSize,
+                                originalCount: allImages.length,
+                                filteredCount: imageLinks.length
+                            } : {
+                                filtered: false
+                            }
                         },
                     };
                     returnData.push(newItem);
@@ -370,11 +478,11 @@ class WebCrawler {
                         let link = $(articleElement).find(linkSelector).first().attr('href') || '';
                         // Chuẩn hóa đường dẫn
                         if (link && link.startsWith('/')) {
-                            const urlObj = new URL(url);
+                            const urlObj = new url_1.URL(url);
                             link = `${urlObj.origin}${link}`;
                         }
                         else if (link && !link.startsWith('http')) {
-                            const urlObj = new URL(url);
+                            const urlObj = new url_1.URL(url);
                             link = `${urlObj.origin}/${link}`;
                         }
                         if (title && link) {
