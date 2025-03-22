@@ -2,6 +2,22 @@
 
 Tất cả các thay đổi đáng chú ý của dự án sẽ được ghi lại trong file này.
 
+## [1.5.9] - 2024-05-31
+
+### Cập nhật
+- Tối ưu hóa mã nguồn: loại bỏ các comment không cần thiết, tối ưu các hàm và biến
+- Cải thiện hiệu suất của module tìm kiếm ảnh Google và xử lý ảnh
+- Sửa lỗi kiểu dữ liệu trong file mô tả node
+- Dọn dẹp cấu trúc dự án: xóa thư mục nodes chứa mã nguồn cũ không cần thiết
+- Cập nhật các đường dẫn trong package.json và tsconfig.json
+- Đảm bảo file icon.png được sao chép đúng đến tất cả các thư mục cần thiết trong quá trình build
+- Thêm script tự động hóa quy trình xuất bản (publish-version) để dễ dàng đẩy code lên Git và npm
+
+## [1.5.8] - 2024-05-30
+
+### Cố định
+- Sửa lỗi kiểu dữ liệu trong randomArticle.ts: thay đổi cheerio.Element[] thành any[] để tránh lỗi kiểu dữ liệu không được xuất từ module cheerio
+
 ## [1.5.5] - 2024-03-28
 
 ### Thêm mới

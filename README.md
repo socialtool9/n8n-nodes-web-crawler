@@ -1,4 +1,4 @@
-# Node Web Crawler cho n8n (v1.5.5)
+# Node Web Crawler cho n8n (v1.5.9)
 
 Node tùy chỉnh cho n8n giúp cào dữ liệu từ trang web, trích xuất nội dung văn bản và liên kết hình ảnh, lọc hình ảnh theo kích thước và lưu trữ bài viết vào cơ sở dữ liệu.
 
@@ -240,7 +240,37 @@ Bộ test bao gồm:
 - Kiểm thử thao tác lấy bài viết ngẫu nhiên
 - Kiểm thử các thao tác truy vấn và cập nhật cơ sở dữ liệu
 
-## Cập nhật mới nhất (v1.5.5)
+### Xuất bản
+
+Dự án này có script tự động hóa quy trình xuất bản:
+
+```bash
+# Xuất bản phiên bản mới lên Git và npm
+npm run publish-version
+```
+
+Script này sẽ tự động:
+1. Build dự án
+2. Commit các thay đổi với message dựa trên phiên bản
+3. Tạo tag cho phiên bản mới
+4. Đẩy code và tag lên repository
+5. Xuất bản gói lên npm
+
+## Cập nhật mới nhất (v1.5.9)
+
+Trong phiên bản 1.5.9, chúng tôi đã cải thiện:
+- Tối ưu hóa mã nguồn: loại bỏ các comment không cần thiết, tối ưu các hàm và biến
+- Cải thiện hiệu suất của module tìm kiếm ảnh Google và xử lý ảnh
+- Sửa lỗi kiểu dữ liệu trong file mô tả node để đảm bảo tương thích với n8n mới nhất
+
+## Cập nhật trước đó (v1.5.8)
+
+Trong phiên bản 1.5.8, chúng tôi đã cải thiện:
+- Sửa lỗi kiểu dữ liệu trong randomArticle.ts để tránh lỗi kiểu dữ liệu không được xuất từ module cheerio
+- Đảm bảo tính tương thích với các phiên bản mới nhất của cheerio
+- Cải thiện độ ổn định khi xử lý các phần tử DOM
+
+## Cập nhật trước đó (v1.5.5)
 
 Trong phiên bản 1.5.5, chúng tôi đã cải thiện:
 - Bổ sung test toàn diện cho chức năng lấy bài viết ngẫu nhiên với hỗ trợ phân trang

@@ -8,7 +8,7 @@
     "type": "git",
     "url": "https://github.com/socialtool9/n8n-nodes-web-crawler.git"
   },
-  "version": "1.5.6",
+  "version": "1.5.9",
   "main": "dist/index.js",
   "files": [
     "dist"
@@ -18,7 +18,8 @@
     "dev": "tsc --watch",
     "test": "jest",
     "prepublishOnly": "npm run build",
-    "copy-icon": "copy icon.png dist\\nodes\\"
+    "copy-icon": "copy icon.png dist && if not exist dist\\nodes mkdir dist\\nodes && copy icon.png dist\\nodes\\",
+    "publish-version": "npm run build && node ./scripts/publish.js"
   },
   "keywords": [
     "n8n",
@@ -32,7 +33,7 @@
   "n8n": {
     "n8nNodesApiVersion": 1,
     "nodes": [
-      "dist/nodes/WebCrawler.node.js"
+      "dist/index.js"
     ]
   },
   "dependencies": {
