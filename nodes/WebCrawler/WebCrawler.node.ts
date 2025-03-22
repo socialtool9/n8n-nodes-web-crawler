@@ -51,6 +51,24 @@ export class WebCrawler implements INodeType {
 					const linkSelector = this.getNodeParameter('linkSelector', itemIndex) as string;
 					const contentSelector = this.getNodeParameter('contentSelector', itemIndex) as string;
 					const fetchFullContent = this.getNodeParameter('fetchFullContent', itemIndex) as boolean;
+					
+					// Tham số mới cho phân trang
+					const accessMultiplePages = this.getNodeParameter('accessMultiplePages', itemIndex, false) as boolean;
+					let paginationSelector = '';
+					let maxPages = 1;
+					
+					if (accessMultiplePages) {
+						paginationSelector = this.getNodeParameter('paginationSelector', itemIndex, '') as string;
+						maxPages = this.getNodeParameter('maxPages', itemIndex, 3) as number;
+					}
+					
+					// Tham số cho proxy và timeout
+					const useProxies = this.getNodeParameter('useProxies', itemIndex, false) as boolean;
+					let proxyList = '';
+					if (useProxies) {
+						proxyList = this.getNodeParameter('proxyList', itemIndex, '') as string;
+					}
+					const requestTimeout = this.getNodeParameter('requestTimeout', itemIndex, 30000) as number;
 
 					const result = await getRandomArticle(
 						url,
@@ -58,7 +76,12 @@ export class WebCrawler implements INodeType {
 						titleSelector,
 						linkSelector,
 						contentSelector,
-						fetchFullContent
+						fetchFullContent,
+						paginationSelector,
+						maxPages,
+						useProxies,
+						proxyList,
+						requestTimeout
 					);
 
 					returnData.push(result);
@@ -72,12 +95,26 @@ export class WebCrawler implements INodeType {
 					if (filterBySize) {
 						minImageSize = this.getNodeParameter('minImageSize', itemIndex, 500) as number;
 					}
+                    
+                    // Lấy thông tin proxy
+                    const useProxies = this.getNodeParameter('useProxies', itemIndex, false) as boolean;
+                    let proxyList = '';
+                    
+                    if (useProxies) {
+                        proxyList = this.getNodeParameter('proxyList', itemIndex, '') as string;
+                    }
+                    
+                    // Lấy thông tin timeout
+                    const requestTimeout = this.getNodeParameter('requestTimeout', itemIndex, 30000) as number;
 
 					const result = await googleImageSearch(
 						keyword,
 						maxImages,
 						minImageSize,
-						filterBySize
+						filterBySize,
+						useProxies,
+						proxyList,
+						requestTimeout
 					);
 
 					returnData.push(result);

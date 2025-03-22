@@ -1,7 +1,14 @@
 {
   "name": "n8n-nodes-web-crawler",
-  "version": "1.5.2",
-  "description": "Node n8n để cào dữ liệu web, trích xuất văn bản và hình ảnh, lưu trữ bài viết vào cơ sở dữ liệu, lọc hình ảnh theo kích thước, quản lý trạng thái bài viết",
+  "title": "n8n Node Web Crawler",
+  "description": "Node tùy chỉnh cho n8n để cào dữ liệu từ trang web, trích xuất nội dung và hình ảnh",
+  "author": "Dev Team",
+  "private": false,
+  "repository": {
+    "type": "git",
+    "url": "https://example.com/repo"
+  },
+  "version": "1.5.5",
   "main": "dist/index.js",
   "files": [
     "dist"
@@ -20,7 +27,6 @@
     "scraper",
     "image-filter"
   ],
-  "author": "",
   "license": "MIT",
   "n8n": {
     "n8nNodesApiVersion": 1,

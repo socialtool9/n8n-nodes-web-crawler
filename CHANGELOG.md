@@ -2,6 +2,41 @@
 
 Tất cả các thay đổi đáng chú ý của dự án sẽ được ghi lại trong file này.
 
+## [1.5.5] - 2024-03-28
+
+### Thêm mới
+- Bổ sung test toàn diện cho chức năng lấy bài viết ngẫu nhiên với hỗ trợ phân trang
+- Mở rộng test cho tính năng proxy trong cả hai chức năng lấy bài viết và tìm kiếm ảnh
+- Thêm test cho xử lý timeout trong các trường hợp khác nhau
+
+### Cập nhật
+- Cải thiện độ phủ kiểm thử, đặc biệt cho các tính năng mới
+- Tối ưu hóa cấu trúc test và giảm trùng lặp code
+- Tăng cường kiểm tra xử lý lỗi trong quá trình cào dữ liệu
+
+## [1.5.4] - 2024-03-27
+
+### Thêm mới
+- Thêm tính năng truy cập nhiều trang (pagination) cho chức năng lấy bài viết ngẫu nhiên
+- Hỗ trợ danh sách proxy cho cả chức năng lấy bài viết ngẫu nhiên và tìm kiếm ảnh Google
+- Thêm tùy chọn timeout cho các request, tự động trả về kết quả rỗng nếu quá thời gian
+
+### Cập nhật
+- Tối ưu hóa việc xử lý nhiều ảnh đồng thời với Promise.all và timeout
+- Cải thiện xử lý lỗi và thông báo timeout
+- Bổ sung thống kê về số trang đã truy cập và số bài viết tìm thấy
+
+## [1.5.3] - 2024-03-26
+
+### Thêm mới
+- Thêm hỗ trợ kết nối proxy cho chức năng tìm kiếm ảnh Google
+- Cập nhật hàm getImageSize để hỗ trợ kết nối thông qua proxy
+- Tùy chọn URL proxy có thể tùy chỉnh (http và https)
+
+### Cập nhật
+- Cải thiện cách xử lý lỗi khi kết nối qua proxy không thành công
+- Bổ sung thông tin sử dụng proxy trong kết quả trả về
+
 ## [1.5.2] - 2024-03-24
 
 ### Cố định

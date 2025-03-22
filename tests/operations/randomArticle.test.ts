@@ -504,4 +504,352 @@ describe('randomArticle operation', () => {
         expect(Array.isArray(article.images)).toBe(true);
         expect(article.images.length).toBe(2);
     });
+
+    it('should handle pagination and visit multiple pages', async () => {
+        // Mock HTML content cho trang chính
+        const mockMainHtml = `
+            <html>
+                <body>
+                    <div class="article">
+                        <h2 class="title">Bài viết 1</h2>
+                        <a href="/article1" class="link">Đọc tiếp</a>
+                        <div class="content">Nội dung bài viết 1</div>
+                    </div>
+                    <div class="pagination">
+                        <a href="/page2">Trang 2</a>
+                        <a href="/page3">Trang 3</a>
+                    </div>
+                </body>
+            </html>
+        `;
+
+        // Mock HTML content cho trang 2
+        const mockPage2Html = `
+            <html>
+                <body>
+                    <div class="article">
+                        <h2 class="title">Bài viết 2</h2>
+                        <a href="/article2" class="link">Đọc tiếp</a>
+                        <div class="content">Nội dung bài viết 2</div>
+                    </div>
+                    <div class="pagination">
+                        <a href="/page1">Trang 1</a>
+                        <a href="/page3">Trang 3</a>
+                    </div>
+                </body>
+            </html>
+        `;
+
+        // Mock axios.get để trả về các HTML khác nhau tùy theo URL
+        mockedAxios.get.mockImplementation(async (url) => {
+            if (url === 'https://example.com') {
+                return { data: mockMainHtml };
+            } else if (url === 'https://example.com/page2') {
+                return { data: mockPage2Html };
+            }
+            throw new Error(`URL không được hỗ trợ: ${url}`);
+        });
+
+        // Mock Math.random để chọn bài viết ở trang 2
+        jest.spyOn(global.Math, 'random').mockReturnValue(0.7);
+        jest.spyOn(Date, 'now').mockReturnValue(1742588967732);
+
+        // Mock normalizeUrl
+        mockedNormalizeUrl.mockImplementation((link, baseUrl) => {
+            if (link === '/page2') return 'https://example.com/page2';
+            if (link === '/page3') return 'https://example.com/page3';
+            if (link === '/article1') return 'https://example.com/article1';
+            if (link === '/article2') return 'https://example.com/article2';
+            return `${baseUrl}${link}`;
+        });
+
+        // Tạo mock cho cheerio cho trang 1
+        const mockTitleText1 = jest.fn().mockReturnValue('Bài viết 1');
+        const mockFind1 = jest.fn().mockImplementation((selector) => {
+            if (selector === '.title') return { first: () => ({ text: mockTitleText1 }) };
+            if (selector === '.link') return { first: () => ({ attr: () => '/article1' }) };
+            if (selector === '.content') return { first: () => ({ text: () => 'Nội dung bài viết 1' }) };
+            return { first: () => ({ text: () => '', attr: () => '' }) };
+        });
+
+        // Tạo mock cho cheerio cho trang 2
+        const mockTitleText2 = jest.fn().mockReturnValue('Bài viết 2');
+        const mockFind2 = jest.fn().mockImplementation((selector) => {
+            if (selector === '.title') return { first: () => ({ text: mockTitleText2 }) };
+            if (selector === '.link') return { first: () => ({ attr: () => '/article2' }) };
+            if (selector === '.content') return { first: () => ({ text: () => 'Nội dung bài viết 2' }) };
+            return { first: () => ({ text: () => '', attr: () => '' }) };
+        });
+
+        // Mock cho các phần tử trang 1
+        const mockPage1Article = { find: mockFind1 };
+        const mockPage1Each = jest.fn().mockImplementation((callback) => {
+            callback(0, mockPage1Article);
+        });
+
+        const mockPage1PaginationLinks = [
+            { attr: () => '/page2' },
+            { attr: () => '/page3' }
+        ];
+        const mockPage1PaginationEach = jest.fn().mockImplementation((callback) => {
+            callback(0, mockPage1PaginationLinks[0]);
+            callback(1, mockPage1PaginationLinks[1]);
+        });
+
+        // Mock cho các phần tử trang 2
+        const mockPage2Article = { find: mockFind2 };
+        const mockPage2Each = jest.fn().mockImplementation((callback) => {
+            callback(0, mockPage2Article);
+        });
+
+        // Thứ tự gọi cheerio.load: Trang 1 trước, sau đó trang 2
+        (cheerio.load as jest.Mock).mockImplementationOnce(() => {
+            const $1 = (selector: string) => {
+                if (selector === '.article') return { each: mockPage1Each, length: 1 };
+                if (selector === '.pagination a') return { each: mockPage1PaginationEach, length: 2 };
+                return { each: jest.fn(), length: 0 };
+            };
+            return $1;
+        }).mockImplementationOnce(() => {
+            const $2 = (selector: string) => {
+                if (selector === '.article') return { each: mockPage2Each, length: 1 };
+                return { each: jest.fn(), length: 0 };
+            };
+            return $2;
+        });
+
+        // Call the function with pagination
+        const result = await getRandomArticle(
+            'https://example.com',
+            '.article',
+            '.title',
+            '.link',
+            '.content',
+            false,
+            '.pagination a',
+            2,  // maxPages = 2
+            false, // no proxies
+            '',
+            30000
+        );
+
+        // Assertions
+        expect(mockedAxios.get).toHaveBeenCalledTimes(2);
+        expect(mockedAxios.get).toHaveBeenCalledWith('https://example.com', expect.any(Object));
+        expect(mockedAxios.get).toHaveBeenCalledWith('https://example.com/page2', expect.any(Object));
+        
+        // Check result
+        expect(result).toHaveProperty('json');
+        const json = result.json;
+        expect(json).toHaveProperty('operation', 'randomArticle');
+        expect(json).toHaveProperty('article');
+        
+        if (json && typeof json === 'object' && 'article' in json) {
+            const article = json.article as any;
+            expect(article).toHaveProperty('title', 'Bài viết 2');
+            expect(article).toHaveProperty('link', 'https://example.com/article2');
+            expect(article).toHaveProperty('pageUrl', 'https://example.com/page2');
+        }
+        
+        expect(json).toHaveProperty('stats');
+        if (json && typeof json === 'object' && 'stats' in json) {
+            const stats = json.stats as any;
+            expect(stats).toHaveProperty('pagesVisited', 2);
+            expect(stats).toHaveProperty('totalArticlesFound', 2);
+        }
+    });
+
+    it('should use proxies when provided', async () => {
+        // Mock HTML content
+        const mockHtml = `
+            <html>
+                <body>
+                    <div class="article">
+                        <h2 class="title">Bài viết 1</h2>
+                        <a href="/article1" class="link">Đọc tiếp</a>
+                        <div class="content">Nội dung bài viết 1</div>
+                    </div>
+                </body>
+            </html>
+        `;
+
+        // Theo dõi tạo agent proxy
+        const httpsProxySpy = jest.spyOn(require('https-proxy-agent'), 'HttpsProxyAgent');
+        const httpProxySpy = jest.spyOn(require('http-proxy-agent'), 'HttpProxyAgent');
+
+        // Mock axios response
+        mockedAxios.get.mockResolvedValue({
+            data: mockHtml
+        });
+
+        // Mock Math.random 
+        jest.spyOn(global.Math, 'random').mockReturnValue(0.3);
+        jest.spyOn(Date, 'now').mockReturnValue(1742588967732);
+
+        // Tạo mock cho cheerio
+        const mockTitle = jest.fn().mockReturnValue('Bài viết 1');
+        const mockLink = jest.fn().mockReturnValue('/article1');
+        const mockContent = jest.fn().mockReturnValue('Nội dung bài viết 1');
+
+        const mockFind = jest.fn().mockImplementation((selector) => {
+            if (selector === '.title') return { first: () => ({ text: mockTitle }) };
+            if (selector === '.link') return { first: () => ({ attr: () => mockLink() }) };
+            if (selector === '.content') return { first: () => ({ text: mockContent }) };
+            return { first: () => ({ text: () => '', attr: () => '' }) };
+        });
+
+        const mockArticle = { find: mockFind };
+        const mockArticlesEach = jest.fn().mockImplementation((callback) => {
+            callback(0, mockArticle);
+        });
+
+        // Tạo mock function cho cheerio.load
+        const $ = jest.fn().mockImplementation((selector) => {
+            if (selector === '.article') {
+                return {
+                    each: mockArticlesEach,
+                    length: 1
+                };
+            }
+            return { each: jest.fn(), length: 0 };
+        });
+
+        (cheerio.load as jest.Mock).mockReturnValue($);
+
+        // Mock normalizeUrl
+        mockedNormalizeUrl.mockImplementation((link, baseUrl) => {
+            return link.startsWith('/') ? `${baseUrl}${link}` : link;
+        });
+
+        // Call the function with proxies
+        const result = await getRandomArticle(
+            'https://example.com',
+            '.article',
+            '.title',
+            '.link',
+            '.content',
+            false,
+            '',
+            1,
+            true, // use proxies
+            'https://proxy1.com:8080,http://proxy2.com:8080',
+            30000
+        );
+
+        // Assertions
+        expect(mockedAxios.get).toHaveBeenCalledWith('https://example.com', expect.any(Object));
+        
+        // Kiểm tra proxy được sử dụng
+        expect(httpsProxySpy).toHaveBeenCalled();
+        
+        // Check result
+        expect(result).toHaveProperty('json');
+        const json = result.json;
+        expect(json).toHaveProperty('article');
+        
+        // Kiểm tra thông tin proxy trong kết quả
+        expect(json).toHaveProperty('stats');
+        if (json && typeof json === 'object' && 'stats' in json) {
+            const stats = json.stats as any;
+            expect(stats).toHaveProperty('proxyUsed', 'yes');
+        }
+    });
+
+    it('should handle timeout when fetching content', async () => {
+        // Mock HTML content
+        const mockHtml = `
+            <html>
+                <body>
+                    <div class="article">
+                        <h2 class="title">Bài viết 1</h2>
+                        <a href="/article1" class="link">Đọc tiếp</a>
+                        <div class="content">Nội dung bài viết 1</div>
+                    </div>
+                </body>
+            </html>
+        `;
+
+        // Mock axios response cho trang chính
+        mockedAxios.get.mockImplementation(async (url) => {
+            if (url === 'https://example.com') {
+                return { data: mockHtml };
+            } else if (url === 'https://example.com/article1') {
+                // Mô phỏng timeout khi lấy nội dung đầy đủ
+                throw new Error('Timeout của request');
+            }
+            throw new Error(`URL không được hỗ trợ: ${url}`);
+        });
+
+        // Mock Math.random & Date.now
+        jest.spyOn(global.Math, 'random').mockReturnValue(0.3);
+        jest.spyOn(Date, 'now').mockReturnValue(1742588967732);
+
+        // Tạo mock cho cheerio
+        const mockFind = jest.fn().mockImplementation((selector) => {
+            if (selector === '.title') return { first: () => ({ text: () => 'Bài viết 1' }) };
+            if (selector === '.link') return { first: () => ({ attr: () => '/article1' }) };
+            if (selector === '.content') return { first: () => ({ text: () => 'Nội dung bài viết 1' }) };
+            return { first: () => ({ text: () => '', attr: () => '' }) };
+        });
+
+        const mockArticle = { find: mockFind };
+        const mockArticlesEach = jest.fn().mockImplementation((callback) => {
+            callback(0, mockArticle);
+        });
+
+        // Tạo mock function cho cheerio.load
+        const $ = jest.fn().mockImplementation((selector) => {
+            if (selector === '.article') {
+                return {
+                    each: mockArticlesEach,
+                    length: 1
+                };
+            }
+            return { each: jest.fn(), length: 0 };
+        });
+
+        (cheerio.load as jest.Mock).mockReturnValue($);
+
+        // Mock normalizeUrl
+        mockedNormalizeUrl.mockImplementation((link, baseUrl) => {
+            return link.startsWith('/') ? `${baseUrl}${link}` : link;
+        });
+
+        // Spy console.error
+        const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+        // Call the function với fetchFullContent = true
+        const result = await getRandomArticle(
+            'https://example.com',
+            '.article',
+            '.title',
+            '.link',
+            '.content',
+            true,  // fetch full content
+            '',
+            1,
+            false,
+            '',
+            500  // short timeout
+        );
+
+        // Assertions
+        expect(mockedAxios.get).toHaveBeenCalledTimes(2);
+        expect(mockedAxios.get).toHaveBeenCalledWith('https://example.com', expect.any(Object));
+        expect(mockedAxios.get).toHaveBeenCalledWith('https://example.com/article1', expect.any(Object));
+        
+        // Kiểm tra lỗi đã được ghi nhận
+        expect(consoleErrorSpy).toHaveBeenCalled();
+        
+        // Check kết quả vẫn trả về dữ liệu từ trang ban đầu
+        expect(result).toHaveProperty('json');
+        const json = result.json;
+        expect(json).toHaveProperty('article');
+        
+        if (json && typeof json === 'object' && 'article' in json) {
+            const article = json.article as any;
+            expect(article).toHaveProperty('title', 'Bài viết 1');
+            expect(article).toHaveProperty('content', 'Nội dung bài viết 1');
+        }
+    });
 }); 

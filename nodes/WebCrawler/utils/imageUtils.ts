@@ -1,6 +1,8 @@
 import axios from 'axios';
 import sizeOf from 'image-size';
 import { URL } from 'url';
+import { HttpsProxyAgent } from 'https-proxy-agent';
+import { HttpProxyAgent } from 'http-proxy-agent';
 
 // Kiểm tra xem một chuỗi có phải là ảnh base64 không
 export function isBase64Image(src: string): boolean {
@@ -15,7 +17,11 @@ export function getBase64Buffer(base64String: string): Buffer {
 }
 
 // Hàm kiểm tra kích thước thực tế của hình ảnh
-export async function getImageSize(imageUrl: string): Promise<{ width?: number; height?: number }> {
+export async function getImageSize(
+    imageUrl: string, 
+    proxyUrl?: string, 
+    timeout: number = 30000
+): Promise<{ width?: number; height?: number; timeout?: boolean }> {
     try {
         if (isBase64Image(imageUrl)) {
             // Xử lý ảnh base64
@@ -27,13 +33,42 @@ export async function getImageSize(imageUrl: string): Promise<{ width?: number; 
             };
         } else {
             // Xử lý ảnh thông thường qua URL
-            const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-            const buffer = Buffer.from(response.data, 'binary');
-            const dimensions = sizeOf(buffer);
-            return {
-                width: dimensions.width,
-                height: dimensions.height,
+            const axiosConfig: any = { 
+                responseType: 'arraybuffer',
+                timeout: timeout
             };
+            
+            // Thêm cấu hình proxy nếu được cung cấp
+            if (proxyUrl) {
+                if (proxyUrl.startsWith('https://')) {
+                    axiosConfig.httpsAgent = new HttpsProxyAgent(proxyUrl);
+                } else {
+                    axiosConfig.httpAgent = new HttpProxyAgent(proxyUrl);
+                }
+            }
+            
+            const timeoutPromise = new Promise<{ timeout: true }>((resolve) => {
+                setTimeout(() => resolve({ timeout: true }), timeout);
+            });
+            
+            const fetchPromise = axios.get(imageUrl, axiosConfig)
+                .then(response => {
+                    const buffer = Buffer.from(response.data, 'binary');
+                    const dimensions = sizeOf(buffer);
+                    return {
+                        width: dimensions.width,
+                        height: dimensions.height,
+                    };
+                });
+                
+            // Sử dụng Promise.race để áp dụng timeout
+            const result = await Promise.race([fetchPromise, timeoutPromise]);
+            
+            if ('timeout' in result) {
+                return { timeout: true };
+            }
+            
+            return result;
         }
     } catch (error) {
         console.error(`Lỗi khi lấy kích thước hình ảnh:`, error);

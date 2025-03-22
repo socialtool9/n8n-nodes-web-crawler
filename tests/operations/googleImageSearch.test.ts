@@ -206,4 +206,135 @@ describe('googleImageSearch operation', () => {
     expect(imagesInfo[0]).toHaveProperty('width');
     expect(imagesInfo[0]).toHaveProperty('height');
   });
+  
+  test('should use proxy from proxy list', async () => {
+    // Mock proxy agent creation
+    const httpsProxySpy = jest.spyOn(require('https-proxy-agent'), 'HttpsProxyAgent');
+    const httpProxySpy = jest.spyOn(require('http-proxy-agent'), 'HttpProxyAgent');
+    
+    // Thực thi hàm với danh sách proxy
+    const result = await googleImageSearch(
+      'phong cảnh Việt Nam', 
+      2, 
+      0, 
+      false, 
+      true, 
+      'http://proxy1.com:8080,https://proxy2.com:8080',
+      30000
+    );
+    
+    // Kiểm tra proxy được sử dụng trong axios config
+    expect(mockedAxios.get).toHaveBeenCalledWith(
+      expect.stringContaining('https://www.google.com/search'),
+      expect.objectContaining({
+        timeout: 30000
+      })
+    );
+    
+    // Xác minh HttpsProxyAgent hoặc HttpProxyAgent đã được gọi
+    expect(httpsProxySpy.mock.calls.length + httpProxySpy.mock.calls.length).toBeGreaterThan(0);
+    
+    // Kiểm tra thông tin proxy trong kết quả
+    const json = result.json as IDataObject;
+    expect(json).toHaveProperty('proxyUsed', 'yes');
+  });
+  
+  test('should rotate proxies for different image requests', async () => {
+    // Giả lập nhiều proxy trong danh sách
+    const proxyList = 'http://proxy1.com:8080,https://proxy2.com:8080,http://proxy3.com:8080';
+    
+    // Theo dõi proxy agent được tạo
+    const httpProxySpy = jest.spyOn(require('http-proxy-agent'), 'HttpProxyAgent');
+    const httpsProxySpy = jest.spyOn(require('https-proxy-agent'), 'HttpsProxyAgent');
+    
+    // Giả mạo Math.random để chọn các proxy khác nhau
+    const randomSpy = jest.spyOn(global.Math, 'random');
+    randomSpy.mockReturnValueOnce(0.1).mockReturnValueOnce(0.5).mockReturnValueOnce(0.9);
+    
+    // Thực thi hàm
+    await googleImageSearch(
+      'phong cảnh Việt Nam', 
+      3, 
+      500, 
+      true, 
+      true, 
+      proxyList,
+      30000
+    );
+    
+    // Kiểm tra nếu HttpProxyAgent hoặc HttpsProxyAgent đã được gọi nhiều lần
+    expect(httpProxySpy.mock.calls.length + httpsProxySpy.mock.calls.length).toBeGreaterThan(0);
+  });
+  
+  test('should handle timeout when checking image sizes', async () => {
+    // Mock getImageSize để trả về timeout cho một số hình ảnh
+    mockedImageUtils.getImageSize.mockImplementation(async (url) => {
+      if (url.includes('image1.jpg')) return { width: 800, height: 600 };
+      if (url.includes('image2.jpg')) return { timeout: true };
+      if (url.includes('image3.jpg')) return { width: 1024, height: 768 };
+      if (url.includes('image4.jpg')) return { timeout: true };
+      return { width: undefined, height: undefined };
+    });
+    
+    // Thực thi hàm với timeout ngắn
+    const result = await googleImageSearch(
+      'phong cảnh Việt Nam', 
+      5, 
+      300, 
+      true, 
+      false, 
+      '',
+      5000
+    );
+    
+    // Kiểm tra kết quả
+    const json = result.json as IDataObject;
+    expect(json).toHaveProperty('imageUrls');
+    
+    // Chỉ các ảnh không bị timeout nên được bao gồm
+    const imageUrls = json.imageUrls as string[];
+    expect(imageUrls.every(url => !url.includes('image2.jpg') && !url.includes('image4.jpg'))).toBe(true);
+    
+    // Kiểm tra thông tin timeout trong filterDetails
+    const filterDetails = json.filterDetails as IDataObject;
+    const skipped = filterDetails.skipped as IDataObject;
+    expect(skipped).toHaveProperty('timeout');
+    expect(Number(skipped.timeout)).toBeGreaterThan(0);
+  });
+  
+  test('should handle global timeout for all image processing', async () => {
+    // Giả lập timeout cho toàn bộ quá trình xử lý ảnh
+    jest.useFakeTimers();
+    
+    // Mock getImageSize để không bao giờ resolve
+    mockedImageUtils.getImageSize.mockImplementation(() => new Promise(() => {}));
+    
+    // Thực thi hàm
+    const resultPromise = googleImageSearch(
+      'phong cảnh Việt Nam', 
+      5, 
+      300, 
+      true, 
+      false, 
+      '',
+      1000
+    );
+    
+    // Giả lập trôi qua thời gian
+    jest.advanceTimersByTime(1500);
+    
+    const result = await resultPromise;
+    
+    // Kiểm tra kết quả có phản ánh timeout
+    const json = result.json as IDataObject;
+    expect(json).toHaveProperty('imageUrls');
+    expect(Array.isArray(json.imageUrls)).toBe(true);
+    expect((json.imageUrls as string[]).length).toBe(0);
+    
+    // Kiểm tra thông tin timeout
+    const filterDetails = json.filterDetails as IDataObject;
+    expect(filterDetails).toHaveProperty('timeoutOccurred', true);
+    
+    jest.useRealTimers();
+  });
 }); 

@@ -1,4 +1,4 @@
-# Node Web Crawler cho n8n (v1.5.0)
+# Node Web Crawler cho n8n (v1.5.5)
 
 Node tùy chỉnh cho n8n giúp cào dữ liệu từ trang web, trích xuất nội dung văn bản và liên kết hình ảnh, lọc hình ảnh theo kích thước và lưu trữ bài viết vào cơ sở dữ liệu.
 
@@ -65,10 +65,14 @@ Sau khi cài đặt, node "Web Crawler" sẽ xuất hiện trong danh sách các
 2. **Selector cho bài viết**: CSS selector cho các phần tử bài viết
 3. **Selector cho tiêu đề**: CSS selector cho tiêu đề bài viết
 4. **Selector cho liên kết**: CSS selector cho liên kết bài viết
-5. **Loại cơ sở dữ liệu**: MySQL hoặc PostgreSQL
-6. **Kết nối cơ sở dữ liệu**: Chuỗi kết nối đến cơ sở dữ liệu
-7. **Tên bảng**: Tên bảng lưu trữ bài viết
-8. **Tạo bảng nếu chưa tồn tại**: Tự động tạo bảng nếu chưa có
+5. **Selector cho nội dung**: CSS selector cho nội dung bài viết
+6. **Lấy nội dung đầy đủ**: Tự động truy cập vào liên kết bài viết để lấy nội dung đầy đủ
+7. **Truy cập nhiều trang**: Duyệt qua nhiều trang để tìm bài viết ngẫu nhiên
+8. **Selector cho phân trang**: CSS selector để tìm các liên kết phân trang
+9. **Số trang tối đa**: Số trang tối đa sẽ được duyệt qua để tìm bài viết
+10. **Sử dụng danh sách Proxy**: Sử dụng nhiều proxy thay thế để tránh bị chặn
+11. **Danh sách Proxy**: Danh sách các proxy cách nhau bởi dấu phẩy
+12. **Thời gian chờ tối đa**: Thời gian tối đa chờ phản hồi từ server (milliseconds)
 
 ### Tham số cho Lấy Bài Viết Từ Cơ Sở Dữ Liệu:
 
@@ -91,6 +95,9 @@ Sau khi cài đặt, node "Web Crawler" sẽ xuất hiện trong danh sách các
 2. **Số lượng ảnh tối đa**: Số lượng ảnh muốn lấy về (mặc định: 5)
 3. **Lọc ảnh theo kích thước**: Bật/tắt tính năng lọc ảnh theo kích thước
 4. **Kích thước tối thiểu (px)**: Chỉ lấy ảnh có chiều rộng hoặc chiều cao lớn hơn giá trị này (mặc định: 500px)
+5. **Sử dụng danh sách Proxy**: Bật/tắt tính năng sử dụng nhiều proxy khi kết nối đến Google Images
+6. **Danh sách Proxy**: Danh sách các proxy cách nhau bởi dấu phẩy
+7. **Thời gian chờ tối đa**: Thời gian tối đa chờ phản hồi (nếu quá thời gian sẽ trả về kết quả rỗng)
 
 ### Kết quả đầu ra:
 
@@ -122,21 +129,23 @@ Sau khi cài đặt, node "Web Crawler" sẽ xuất hiện trong danh sách các
 ```json
 {
   "operation": "randomArticle",
-  "databaseType": "mysql",
   "articleId": "article_1647867542123_456",
-  "tableName": "web_articles",
   "article": {
     "title": "Tiêu đề bài viết",
     "link": "https://example.com/article",
     "content": "Nội dung bài viết...",
-    "status": "pending"
+    "images": [
+      "https://example.com/image1.jpg",
+      "https://example.com/image2.jpg"
+    ],
+    "pageUrl": "https://example.com/page/2"
   },
-  "database": {
-    "success": true,
-    "id": "article_1647867542123_456",
-    "type": "mysql"
-  },
-  "message": "Đã lưu bài viết \"Tiêu đề bài viết\" vào cơ sở dữ liệu mysql"
+  "message": "Đã lấy bài viết \"Tiêu đề bài viết\" từ trang web",
+  "stats": {
+    "pagesVisited": 3,
+    "totalArticlesFound": 42,
+    "proxyUsed": "yes"
+  }
 }
 ```
 
@@ -168,7 +177,7 @@ Sau khi cài đặt, node "Web Crawler" sẽ xuất hiện trong danh sách các
 ```json
 {
   "operation": "googleImageSearch",
-  "keyword": "phong cảnh đẹp Việt Nam",
+  "keyword": "nature landscape",
   "imageCount": 5,
   "requestedCount": 5,
   "imageUrls": [
@@ -181,19 +190,20 @@ Sau khi cài đặt, node "Web Crawler" sẽ xuất hiện trong danh sách các
   "imagesInfo": [
     {
       "url": "https://example.com/image1.jpg",
-      "width": 1200,
-      "height": 800
+      "width": 1920,
+      "height": 1080
     },
-    // ... thông tin các ảnh khác
+    // ... các ảnh khác
   ],
+  "proxyUsed": "yes",
   "filterDetails": {
     "filtered": true,
     "minImageSize": 500,
     "totalFound": 25,
     "processedCount": 5,
     "skipped": {
-      "small": 8,
-      "error": 3
+      "small": 15,
+      "error": 5
     }
   }
 }
@@ -230,13 +240,14 @@ Bộ test bao gồm:
 - Kiểm thử thao tác lấy bài viết ngẫu nhiên
 - Kiểm thử các thao tác truy vấn và cập nhật cơ sở dữ liệu
 
-## Cập nhật mới nhất (v1.5.0)
+## Cập nhật mới nhất (v1.5.5)
 
-Trong phiên bản 1.5.0, chúng tôi đã cải thiện:
-- Hoàn thiện tính năng tìm kiếm ảnh Google với bộ test đầy đủ
-- Thêm kiểm tra đặc biệt cho dữ liệu ảnh base64
-- Sửa lỗi trong hàm isBase64Image để nhận dạng chính xác chuỗi base64
-- Cải thiện độ chính xác của bộ lọc hình ảnh
+Trong phiên bản 1.5.5, chúng tôi đã cải thiện:
+- Bổ sung test toàn diện cho chức năng lấy bài viết ngẫu nhiên với hỗ trợ phân trang
+- Mở rộng test cho tính năng proxy trong cả hai chức năng lấy bài viết và tìm kiếm ảnh
+- Thêm test cho xử lý timeout trong các trường hợp khác nhau
+- Cải thiện độ phủ kiểm thử, đặc biệt cho các tính năng mới
+- Tối ưu hóa cấu trúc test và giảm trùng lặp code
 
 ## Các bản cập nhật trước
 
