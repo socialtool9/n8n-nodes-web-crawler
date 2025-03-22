@@ -40,7 +40,22 @@ class WebCrawler {
                     const linkSelector = this.getNodeParameter('linkSelector', itemIndex);
                     const contentSelector = this.getNodeParameter('contentSelector', itemIndex);
                     const fetchFullContent = this.getNodeParameter('fetchFullContent', itemIndex);
-                    const result = await (0, randomArticle_1.getRandomArticle)(url, articleSelector, titleSelector, linkSelector, contentSelector, fetchFullContent);
+                    // Tham số mới cho phân trang
+                    const accessMultiplePages = this.getNodeParameter('accessMultiplePages', itemIndex, false);
+                    let paginationSelector = '';
+                    let maxPages = 1;
+                    if (accessMultiplePages) {
+                        paginationSelector = this.getNodeParameter('paginationSelector', itemIndex, '');
+                        maxPages = this.getNodeParameter('maxPages', itemIndex, 3);
+                    }
+                    // Tham số cho proxy và timeout
+                    const useProxies = this.getNodeParameter('useProxies', itemIndex, false);
+                    let proxyList = '';
+                    if (useProxies) {
+                        proxyList = this.getNodeParameter('proxyList', itemIndex, '');
+                    }
+                    const requestTimeout = this.getNodeParameter('requestTimeout', itemIndex, 30000);
+                    const result = await (0, randomArticle_1.getRandomArticle)(url, articleSelector, titleSelector, linkSelector, contentSelector, fetchFullContent, paginationSelector, maxPages, useProxies, proxyList, requestTimeout);
                     returnData.push(result);
                 }
                 else if (operation === 'googleImageSearch') {
@@ -52,7 +67,15 @@ class WebCrawler {
                     if (filterBySize) {
                         minImageSize = this.getNodeParameter('minImageSize', itemIndex, 500);
                     }
-                    const result = await (0, googleImageSearch_1.googleImageSearch)(keyword, maxImages, minImageSize, filterBySize);
+                    // Lấy thông tin proxy
+                    const useProxies = this.getNodeParameter('useProxies', itemIndex, false);
+                    let proxyList = '';
+                    if (useProxies) {
+                        proxyList = this.getNodeParameter('proxyList', itemIndex, '');
+                    }
+                    // Lấy thông tin timeout
+                    const requestTimeout = this.getNodeParameter('requestTimeout', itemIndex, 30000);
+                    const result = await (0, googleImageSearch_1.googleImageSearch)(keyword, maxImages, minImageSize, filterBySize, useProxies, proxyList, requestTimeout);
                     returnData.push(result);
                 }
             }

@@ -105,6 +105,70 @@ exports.nodeDescription = {
                 },
             },
         },
+        {
+            displayName: 'Sử dụng Proxy',
+            name: 'useProxy',
+            type: 'boolean',
+            default: false,
+            description: 'Sử dụng proxy để kết nối đến Google Images, giúp tránh bị chặn',
+            displayOptions: {
+                show: {
+                    operation: ['googleImageSearch'],
+                },
+            },
+        },
+        {
+            displayName: 'URL Proxy',
+            name: 'proxyUrl',
+            type: 'string',
+            default: '',
+            placeholder: 'http://user:password@proxy.example.com:8080',
+            description: 'URL của proxy theo định dạng: http(s)://[user:password@]proxy.example.com:port',
+            displayOptions: {
+                show: {
+                    operation: ['googleImageSearch'],
+                    useProxy: [true],
+                },
+            },
+        },
+        {
+            displayName: 'Thời gian chờ tối đa (ms)',
+            name: 'requestTimeout',
+            type: 'number',
+            default: 30000,
+            description: 'Thời gian tối đa chờ phản hồi từ server (milliseconds), nếu quá thời gian sẽ trả về kết quả rỗng',
+            displayOptions: {
+                show: {
+                    operation: ['googleImageSearch'],
+                },
+            },
+        },
+        {
+            displayName: 'Sử dụng danh sách Proxy',
+            name: 'useProxies',
+            type: 'boolean',
+            default: false,
+            description: 'Sử dụng nhiều proxy thay thế để tránh bị chặn',
+            displayOptions: {
+                show: {
+                    operation: ['googleImageSearch', 'randomArticle'],
+                },
+            },
+        },
+        {
+            displayName: 'Danh sách Proxy',
+            name: 'proxyList',
+            type: 'string',
+            default: '',
+            placeholder: 'http://proxy1.com:8080,http://proxy2.com:8080',
+            description: 'Danh sách các proxy cách nhau bởi dấu phẩy, một proxy sẽ được chọn ngẫu nhiên cho mỗi request',
+            displayOptions: {
+                show: {
+                    operation: ['googleImageSearch', 'randomArticle'],
+                    useProxies: [true],
+                },
+            },
+        },
         // Trường cho việc cào trang
         {
             displayName: 'Selector cho nội dung văn bản',
@@ -223,6 +287,56 @@ exports.nodeDescription = {
             type: 'boolean',
             default: true,
             description: 'Tự động truy cập vào liên kết bài viết để lấy nội dung đầy đủ',
+            displayOptions: {
+                show: {
+                    operation: ['randomArticle'],
+                },
+            },
+        },
+        {
+            displayName: 'Truy cập nhiều trang',
+            name: 'accessMultiplePages',
+            type: 'boolean',
+            default: false,
+            description: 'Duyệt qua nhiều trang để tìm bài viết ngẫu nhiên',
+            displayOptions: {
+                show: {
+                    operation: ['randomArticle'],
+                },
+            },
+        },
+        {
+            displayName: 'Selector cho phân trang',
+            name: 'paginationSelector',
+            type: 'string',
+            default: '.pagination a, .nav-links a, .page-numbers',
+            description: 'CSS selector để tìm các liên kết phân trang',
+            displayOptions: {
+                show: {
+                    operation: ['randomArticle'],
+                    accessMultiplePages: [true],
+                },
+            },
+        },
+        {
+            displayName: 'Số trang tối đa',
+            name: 'maxPages',
+            type: 'number',
+            default: 3,
+            description: 'Số trang tối đa sẽ được duyệt qua để tìm bài viết',
+            displayOptions: {
+                show: {
+                    operation: ['randomArticle'],
+                    accessMultiplePages: [true],
+                },
+            },
+        },
+        {
+            displayName: 'Thời gian chờ tối đa (ms)',
+            name: 'requestTimeout',
+            type: 'number',
+            default: 30000,
+            description: 'Thời gian tối đa chờ phản hồi từ server (milliseconds)',
             displayOptions: {
                 show: {
                     operation: ['randomArticle'],

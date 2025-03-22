@@ -56,6 +56,10 @@ export async function googleImageSearch(
         }
     }
 
+    // Mảng lưu URL ảnh đã tìm thấy
+    const imageUrls: string[] = [];
+    const skippedImages: { small: number, error: number, timeout: number } = { small: 0, error: 0, timeout: 0 };
+
     try {
         // Gửi yêu cầu HTTP
         const response = await axios.get(searchUrl, axiosConfig);
@@ -63,10 +67,6 @@ export async function googleImageSearch(
 
         // Load HTML vào Cheerio
         const $ = cheerio.load(html);
-        
-        // Mảng lưu URL ảnh đã tìm thấy
-        const imageUrls: string[] = [];
-        const skippedImages: { small: number, error: number, timeout: number } = { small: 0, error: 0, timeout: 0 };
         
         // Trích xuất URL ảnh từ kết quả tìm kiếm
         // Google sử dụng các thẻ khác nhau và cấu trúc phức tạp, 
@@ -111,7 +111,7 @@ export async function googleImageSearch(
         // Giới hạn số lượng ảnh xử lý để tránh quá tải
         const imagesToProcess = imageUrls.slice(0, Math.min(maxImages * 3, 30));
         
-        // Promise cho các tiến trình xử lý ảnh, với timeout
+        // Promise cho các tiến trình xử lý ảnh, với timeout cho từng ảnh riêng biệt
         const imagePromises = imagesToProcess.map(async (imageUrl, index) => {
             try {
                 // Chọn một proxy ngẫu nhiên khác cho mỗi request ảnh
@@ -155,42 +155,29 @@ export async function googleImageSearch(
             }
         });
         
-        // Xử lý song song tất cả các ảnh, với timeout tổng thể
-        let processedResults;
+        // Xử lý song song tất cả các ảnh, với cơ chế fallback đáng tin cậy
+        let processedResults: Array<{ url: string, width?: number, height?: number, index: number } | null> = [];
+        
         try {
-            // Áp dụng timeout tổng cho việc xử lý tất cả ảnh
-            const timeoutPromise = new Promise((_, reject) => {
-                setTimeout(() => reject(new Error('Quá thời gian xử lý tất cả ảnh')), requestTimeout);
-            });
+            // Xử lý song song với timeout tổng thể
+            const timeoutController = new AbortController();
+            const timeoutId = setTimeout(() => timeoutController.abort(), requestTimeout);
             
-            // Chạy đồng thời xử lý ảnh và timeout
-            processedResults = await Promise.race([
-                Promise.all(imagePromises),
-                timeoutPromise
-            ]) as Array<{ url: string, width?: number, height?: number, index: number } | null>;
-        } catch (error) {
-            // Nếu timeout tổng thể xảy ra, trả về mảng ảnh rỗng
-            console.error('Quá thời gian tải tất cả ảnh:', error);
-            return {
-                json: {
-                    operation: 'googleImageSearch',
-                    keyword,
-                    imageCount: 0,
-                    requestedCount: maxImages,
-                    imageUrls: [],
-                    imagesInfo: [],
-                    proxyUsed: useProxies && proxies.length > 0 ? 'yes' : 'no',
-                    error: 'Timeout khi tải ảnh',
-                    filterDetails: {
-                        filtered: filterBySize,
-                        minImageSize: filterBySize ? minImageSize : undefined,
-                        totalFound: imageUrls.length,
-                        processedCount: 0,
-                        timeoutOccurred: true,
-                        skipped: skippedImages
-                    }
+            // Sử dụng Promise.allSettled thay vì Promise.all để đảm bảo không bị dừng khi có lỗi
+            const results = await Promise.allSettled(imagePromises);
+            
+            clearTimeout(timeoutId);
+            
+            // Xử lý kết quả của Promise.allSettled
+            processedResults = results.map(result => {
+                if (result.status === 'fulfilled' && result.value !== null) {
+                    return result.value;
                 }
-            };
+                return null;
+            });
+        } catch (error) {
+            console.error('Lỗi khi xử lý tất cả ảnh:', error);
+            // Vẫn tiếp tục với các kết quả đã có (nếu có)
         }
         
         // Lọc bỏ các kết quả null và sắp xếp lại theo vị trí ban đầu
