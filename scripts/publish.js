@@ -44,7 +44,7 @@ if (!runCommand(`git tag -a v${version} -m "Phiên bản ${version}"`)) {
 }
 
 // 4. Đẩy lên nhánh main/master
-if (!runCommand('git push origin main')) {
+if (!runCommand('git push origin master')) {
   console.error('Không thể đẩy lên nhánh chính. Kiểm tra kết nối và quyền truy cập.');
   process.exit(1);
 }
@@ -63,4 +63,4 @@ if (!runCommand('npm publish --access public')) {
 }
 
 console.log(`\n===== XUẤT BẢN PHIÊN BẢN ${version} HOÀN TẤT =====\n`);
-console.log('Gói đã được đẩy lên Git và xuất bản thành công lên npm!'); 
+console.log('Gói đã được đẩy lên Git và xuất bản thành công lên npm!');
