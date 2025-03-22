@@ -8,8 +8,8 @@
     "type": "git",
     "url": "https://github.com/socialtool9/n8n-nodes-web-crawler.git"
   },
-  "version": "1.6.0",
-  "main": "dist/index.js",
+  "version": "1.6.1",
+  "main": "dist/WebCrawler.node.js",
   "files": [
     "dist"
   ],
@@ -33,7 +33,7 @@
   "n8n": {
     "n8nNodesApiVersion": 1,
     "nodes": [
-      "dist/index.js"
+      "dist/WebCrawler.node.js"
     ]
   },
   "dependencies": {
